@@ -41,6 +41,7 @@ class CricketDashboard:
             "bg_light": "#f0f0f0",
             "text": "#333333",
             "text_light": "#ffffff",
+            "text_secondary": "#666666",
             "success": "#2ecc71",
             "warning": "#f39c12",
             "error": "#e74c3c"
@@ -106,6 +107,21 @@ class CricketDashboard:
                     
                     if hasattr(self, 'status_label'):
                         self.status_label.config(text=f"Live matches loaded - {datetime.now().strftime('%H:%M:%S')}")
+                elif response.status_code == 429:
+                    # Handle rate limit specifically
+                    self._use_sample_data()
+                    
+                    if hasattr(self, 'status_label'):
+                        self.status_label.config(text=f"API rate limit reached (429). Using sample data instead.")
+                    
+                    # Show a more informative message
+                    if hasattr(self, 'root') and self.root.winfo_exists():
+                        messagebox.showinfo(
+                            "API Rate Limit", 
+                            "You've reached the RapidAPI rate limit for the Cricbuzz API.\n\n"
+                            "The application will use sample data for demonstration purposes.\n\n"
+                            "Rate limits typically reset after 24 hours."
+                        )
                 else:
                     # Fall back to sample data if API fails
                     self._use_sample_data()
@@ -141,40 +157,114 @@ class CricketDashboard:
                                 "matches": [
                                     {
                                         "matchInfo": {
-                                            "matchId": "1001",
-                                            "matchDesc": "1st Match, Group A",
+                                            "matchId": "112469",
+                                            "matchDesc": "13th Match, Group C",
                                             "matchFormat": "T20",
-                                            "status": "India needs 23 runs from 12 balls",
-                                            "state": "In Progress",
+                                            "status": "India won by 8 wickets",
+                                            "state": "Complete",
                                             "team1": {"teamName": "India"},
-                                            "team2": {"teamName": "Australia"},
-                                            "venueInfo": {"ground": "MCG", "city": "Melbourne"}
+                                            "team2": {"teamName": "Ireland"},
+                                            "venueInfo": {"ground": "Nassau County International Stadium", "city": "New York"}
                                         },
                                         "matchScore": {
                                             "team1Score": {
-                                                "inngs1": {"runs": 178, "wickets": 5, "overs": 18.0}
+                                                "inngs1": {"runs": 147, "wickets": 6, "overs": 20.0}
                                             },
                                             "team2Score": {
-                                                "inngs1": {"runs": 155, "wickets": 8, "overs": 18.0}
+                                                "inngs1": {"runs": 150, "wickets": 2, "overs": 15.2}
                                             }
                                         }
                                     },
                                     {
                                         "matchInfo": {
-                                            "matchId": "1002", 
-                                            "matchDesc": "2nd Match, Group B",
+                                            "matchId": "112462", 
+                                            "matchDesc": "10th Match, Group D",
                                             "matchFormat": "T20",
-                                            "status": "Live - Drinks Break",
-                                            "state": "Innings Break",
-                                            "team1": {"teamName": "England"},
-                                            "team2": {"teamName": "South Africa"},
-                                            "venueInfo": {"ground": "Lord's", "city": "London"}
+                                            "status": "New Zealand won by 4 wickets",
+                                            "state": "Complete",
+                                            "team1": {"teamName": "Afghanistan"},
+                                            "team2": {"teamName": "New Zealand"},
+                                            "venueInfo": {"ground": "Providence Stadium", "city": "Guyana"}
                                         },
                                         "matchScore": {
                                             "team1Score": {
-                                                "inngs1": {"runs": 189, "wickets": 6, "overs": 20.0}
+                                                "inngs1": {"runs": 129, "wickets": 6, "overs": 20.0}
                                             },
-                                            "team2Score": {}
+                                            "team2Score": {
+                                                "inngs1": {"runs": 130, "wickets": 6, "overs": 18.1}
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "matchInfo": {
+                                            "matchId": "112455", 
+                                            "matchDesc": "9th Match, Group B",
+                                            "matchFormat": "T20",
+                                            "status": "Australia won by 36 runs",
+                                            "state": "Complete",
+                                            "team1": {"teamName": "Australia"},
+                                            "team2": {"teamName": "England"},
+                                            "venueInfo": {"ground": "Kensington Oval", "city": "Barbados"}
+                                        },
+                                        "matchScore": {
+                                            "team1Score": {
+                                                "inngs1": {"runs": 201, "wickets": 7, "overs": 20.0}
+                                            },
+                                            "team2Score": {
+                                                "inngs1": {"runs": 165, "wickets": 10, "overs": 18.2}
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "matchType": "League",
+                    "seriesMatches": [
+                        {
+                            "seriesAdWrapper": {
+                                "seriesName": "IPL 2024",
+                                "matches": [
+                                    {
+                                        "matchInfo": {
+                                            "matchId": "112420",
+                                            "matchDesc": "Final",
+                                            "matchFormat": "T20",
+                                            "status": "Kolkata Knight Riders won by 8 wickets",
+                                            "state": "Complete",
+                                            "team1": {"teamName": "Sunrisers Hyderabad"},
+                                            "team2": {"teamName": "Kolkata Knight Riders"},
+                                            "venueInfo": {"ground": "MA Chidambaram Stadium", "city": "Chennai"}
+                                        },
+                                        "matchScore": {
+                                            "team1Score": {
+                                                "inngs1": {"runs": 113, "wickets": 10, "overs": 18.3}
+                                            },
+                                            "team2Score": {
+                                                "inngs1": {"runs": 114, "wickets": 2, "overs": 10.3}
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "matchInfo": {
+                                            "matchId": "112402",
+                                            "matchDesc": "Qualifier 2",
+                                            "matchFormat": "T20",
+                                            "status": "Sunrisers Hyderabad won by 35 runs",
+                                            "state": "Complete",
+                                            "team1": {"teamName": "Rajasthan Royals"},
+                                            "team2": {"teamName": "Sunrisers Hyderabad"},
+                                            "venueInfo": {"ground": "MA Chidambaram Stadium", "city": "Chennai"}
+                                        },
+                                        "matchScore": {
+                                            "team1Score": {
+                                                "inngs1": {"runs": 139, "wickets": 10, "overs": 19.1}
+                                            },
+                                            "team2Score": {
+                                                "inngs1": {"runs": 175, "wickets": 9, "overs": 20.0}
+                                            }
                                         }
                                     }
                                 ]
@@ -415,12 +505,24 @@ class CricketDashboard:
         self.match_selection_done_var.set(True)  # Signal that selection is done
     
     def load_match_from_entry(self):
-        """Load match from manually entered ID"""
-        match_id = self.manual_entry.get().strip()
-        if match_id:
-            self.load_match_from_selection(match_id)
+        """Load match from manual entry (deprecated but kept for compatibility)"""
+        if hasattr(self, 'manual_entry'):
+            match_id = self.manual_entry.get().strip()
+            if match_id:
+                self.match_selection_done_var.set(True)
+                self.selected_match_id = match_id
         else:
-            messagebox.showwarning("Input Error", "Please enter a valid match ID")
+            self.load_quick_match()
+            
+    def load_quick_match(self):
+        """Load match from quick access entry"""
+        if hasattr(self, 'quick_id_entry'):
+            match_id = self.quick_id_entry.get().strip()
+            if match_id:
+                # Set the selected match ID
+                self.selected_match_id = match_id
+                # Set selection done flag to true to exit waiting loop
+                self.match_selection_done_var.set(True)
     
     def show_match_selection_screen(self):
         """Show the match selection screen"""
@@ -445,8 +547,51 @@ class CricketDashboard:
         )
         header_label.pack()
         
+        # Add direct match ID entry at the top - more prominent position
+        direct_access_frame = tk.Frame(self.selection_frame, bg=self.colors["bg_light"], padx=20, pady=15)
+        direct_access_frame.pack(fill=tk.X)
+        
+        # Add a labelframe to make it stand out
+        quick_access_box = ttk.LabelFrame(direct_access_frame, text="Quick Match Access")
+        quick_access_box.pack(fill=tk.X, pady=5)
+        
+        quick_access_content = tk.Frame(quick_access_box, bg=self.colors["bg_light"], padx=10, pady=10)
+        quick_access_content.pack(fill=tk.X)
+        
+        tk.Label(
+            quick_access_content,
+            text="Enter Match ID:",
+            font=("Arial", 12, "bold"),
+            bg=self.colors["bg_light"]
+        ).pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.quick_id_entry = tk.Entry(quick_access_content, width=15, font=("Arial", 12))
+        self.quick_id_entry.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Add a suggestion label
+        suggestion_label = tk.Label(
+            quick_access_content,
+            text="Try IDs: 112469, 112462, 112455, 112420, 112402",
+            font=("Arial", 10, "italic"),
+            fg=self.colors["text_secondary"],
+            bg=self.colors["bg_light"]
+        )
+        suggestion_label.pack(side=tk.LEFT, padx=(0, 20))
+        
+        load_button = tk.Button(
+            quick_access_content,
+            text="Load Match",
+            bg=self.colors["accent"],
+            fg=self.colors["text_light"],
+            font=("Arial", 12, "bold"),
+            padx=15,
+            pady=5,
+            command=self.load_quick_match
+        )
+        load_button.pack(side=tk.RIGHT)
+        
         # Main content frame with two columns
-        content_frame = tk.Frame(self.selection_frame, bg=self.colors["bg_light"], padx=20, pady=20)
+        content_frame = tk.Frame(self.selection_frame, bg=self.colors["bg_light"], padx=20, pady=10)
         content_frame.pack(fill=tk.BOTH, expand=True)
         
         # Left column - Live Matches
@@ -516,27 +661,6 @@ class CricketDashboard:
         # Manual entry section
         manual_frame = tk.Frame(self.selection_frame, bg=self.colors["bg_light"], pady=15)
         manual_frame.pack(fill=tk.X, side=tk.BOTTOM, padx=20)
-        
-        tk.Label(
-            manual_frame,
-            text="Or enter match ID manually:",
-            font=("Arial", 11),
-            bg=self.colors["bg_light"]
-        ).pack(side=tk.LEFT, padx=(0, 10))
-        
-        self.manual_entry = tk.Entry(manual_frame, width=15, font=("Arial", 11))
-        self.manual_entry.pack(side=tk.LEFT, padx=(0, 10))
-        
-        manual_button = tk.Button(
-            manual_frame,
-            text="Load Match",
-            bg=self.colors["accent"],
-            fg=self.colors["text_light"],
-            font=("Arial", 11),
-            padx=10,
-            command=self.load_match_from_entry
-        )
-        manual_button.pack(side=tk.LEFT)
         
         # Add refresh button
         refresh_button = tk.Button(
@@ -926,12 +1050,22 @@ class CricketDashboard:
             # Make the API call with the user-provided match ID
             url = f"https://cricbuzz-cricket.p.rapidapi.com/mcenter/v1/{self.match_id}/hscard"
             headers = {
-                "x-rapidapi-key": "8d67da612bmsh8a02332f29deb18p108a09jsncb75658ec250",
+                "x-rapidapi-key": "4ade6f2361msh57ccf4cb0584770p18e418jsnc58ddc583a78",
                 "x-rapidapi-host": "cricbuzz-cricket.p.rapidapi.com"
             }
             response = requests.get(url, headers=headers, timeout=10)  # Add timeout
             
-            if response.status_code != 200:
+            if response.status_code == 429:
+                # Handle rate limit exceeded
+                error_msg = "API rate limit exceeded (429). Try again later."
+                self.root.after(0, lambda: messagebox.showinfo(
+                    "API Rate Limit", 
+                    "You've reached the RapidAPI rate limit for the Cricbuzz API.\n\n"
+                    "The application will use cached data if available.\n\n"
+                    "Rate limits typically reset after 24 hours."
+                ))
+                raise Exception(error_msg)
+            elif response.status_code != 200:
                 raise Exception(f"API error: {response.status_code}")
                 
             api_data = response.json()
@@ -1265,11 +1399,11 @@ class CricketDashboard:
     def create_overview_tab(self):
         """Create content for the overview tab"""
         # Create a single frame for all graphs
-        graphs_frame = ttk.LabelFrame(self.overview_tab, text="Match Statistics", padding=10)
-        graphs_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        graphs_frame = ttk.LabelFrame(self.overview_tab, text="Match Statistics", padding=15)
+        graphs_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
         
         # Create a figure with 2x2 subplots for equal sizing
-        fig = plt.figure(figsize=(12, 10))
+        fig = plt.figure(figsize=(10, 8))
         
         # First graph: Team Comparison (top-left)
         ax1 = fig.add_subplot(2, 2, 1)
@@ -1371,7 +1505,7 @@ Result: {header["status"]}
         """Create content for the batting analysis tab"""
         # Top frame with controls
         control_frame = tk.Frame(self.batting_tab)
-        control_frame.pack(fill=tk.X, padx=10, pady=10)
+        control_frame.pack(fill=tk.X, padx=5, pady=5)
         
         # Filter by innings
         innings_label = tk.Label(control_frame, text="Select Innings:")
@@ -1389,7 +1523,7 @@ Result: {header["status"]}
         
         # Analysis type
         analysis_label = tk.Label(control_frame, text="Analysis Type:")
-        analysis_label.pack(side=tk.LEFT, padx=(0, 10))
+        analysis_label.pack(side=tk.LEFT, padx=(0, 5))
         
         analysis_var = tk.StringVar(value="Runs Distribution")
         analysis_dropdown = ttk.Combobox(
@@ -1406,11 +1540,11 @@ Result: {header["status"]}
         graphs_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # Left graph: Runs scored by batsmen
-        runs_frame = ttk.LabelFrame(graphs_frame, text="Runs by Batsmen", padding=10)
+        runs_frame = ttk.LabelFrame(graphs_frame, text="Runs by Batsmen", padding=5)
         runs_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
         
-        fig1, ax1 = plt.subplots(figsize=(5, 6))
-        
+        fig1, ax1 = plt.subplots(figsize=(4, 4))
+                
         # Get data for the first innings - FIXING THE ERROR HERE
         innings = self.match_data["scoreCard"][0]
         batsmen = innings["batsmen"][:6]  # Show top 6 batsmen
@@ -1434,10 +1568,10 @@ Result: {header["status"]}
         canvas1.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
         # Right graph: Strike rates
-        strike_frame = ttk.LabelFrame(graphs_frame, text="Batsmen Strike Rates", padding=10)
+        strike_frame = ttk.LabelFrame(graphs_frame, text="Batsmen Strike Rates", padding=5)
         strike_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
         
-        fig2, ax2 = plt.subplots(figsize=(5, 6))
+        fig2, ax2 = plt.subplots(figsize=(4, 4))
         
         # Calculate strike rates
         strike_rates = [round((batsman["runs"] / batsman["balls"]) * 100, 1) for batsman in batsmen]
@@ -1458,8 +1592,8 @@ Result: {header["status"]}
         canvas2.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
         # Bottom frame for batting scorecard
-        scorecard_frame = ttk.LabelFrame(self.batting_tab, text="Batting Scorecard", padding=10)
-        scorecard_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        scorecard_frame = ttk.LabelFrame(self.batting_tab, text="Batting Scorecard", padding=5)
+        scorecard_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         # Create treeview for batting scorecard
         cols = ('Batsman', 'Runs', 'Balls', '4s', '6s', 'SR')
@@ -1521,7 +1655,7 @@ Result: {header["status"]}
                 ))
             
             # Update first graph based on analysis type
-            fig1, ax1 = plt.subplots(figsize=(5, 6))
+            fig1, ax1 = plt.subplots(figsize=(4, 4))
             
             if analysis_type == "Runs Distribution":
                 runs = [batsman["runs"] for batsman in batsmen]
@@ -1556,7 +1690,7 @@ Result: {header["status"]}
             canvas1.get_tk_widget().pack(fill=tk.BOTH, expand=True)
             
             # Update second graph
-            fig2, ax2 = plt.subplots(figsize=(5, 6))
+            fig2, ax2 = plt.subplots(figsize=(4, 4))
             
             # Pie chart showing runs from boundaries vs non-boundaries
             total_runs = sum(batsman["runs"] for batsman in innings["batsmen"])
@@ -1584,7 +1718,7 @@ Result: {header["status"]}
         """Create content for the bowling analysis tab"""
         # Top frame with controls
         control_frame = tk.Frame(self.bowling_tab)
-        control_frame.pack(fill=tk.X, padx=10, pady=10)
+        control_frame.pack(fill=tk.X, padx=5, pady=5)
         
         # Filter by innings
         innings_label = tk.Label(control_frame, text="Select Innings:")
@@ -1602,13 +1736,13 @@ Result: {header["status"]}
         
         # Create frame for graphs
         graphs_frame = tk.Frame(self.bowling_tab)
-        graphs_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        graphs_frame.pack(fill=tk.BOTH, expand=True)
         
         # Left graph: Wickets taken by bowlers
-        wickets_frame = ttk.LabelFrame(graphs_frame, text="Wickets by Bowlers", padding=10)
-        wickets_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+        wickets_frame = ttk.LabelFrame(graphs_frame, text="Wickets by Bowlers")
+        wickets_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 3))
         
-        fig1, ax1 = plt.subplots(figsize=(5, 6))
+        fig1, ax1 = plt.subplots(figsize=(4, 4))
         
         # Get data for the second innings (bowling figures for first team)
         innings = self.match_data["scoreCard"][1]  # Second innings
@@ -1633,10 +1767,10 @@ Result: {header["status"]}
         canvas1.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
         # Right graph: Economy rates
-        economy_frame = ttk.LabelFrame(graphs_frame, text="Bowler Economy Rates", padding=10)
-        economy_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
+        economy_frame = ttk.LabelFrame(graphs_frame, text="Bowler Economy Rates")
+        economy_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
         
-        fig2, ax2 = plt.subplots(figsize=(5, 6))
+        fig2, ax2 = plt.subplots(figsize=(4, 4))
         
         # Calculate economy rates
         economy_rates = [round(bowler["runs"] / float(bowler["overs"]), 2) for bowler in bowlers]
@@ -1719,7 +1853,7 @@ Result: {header["status"]}
                 ))
             
             # Update wickets graph
-            fig1, ax1 = plt.subplots(figsize=(5, 6))
+            fig1, ax1 = plt.subplots(figsize=(4, 4))
             wickets = [bowler["wickets"] for bowler in bowlers]
             
             bars = ax1.barh(names, wickets, color='#3498db', alpha=0.7)
@@ -1737,7 +1871,7 @@ Result: {header["status"]}
             canvas1.get_tk_widget().pack(fill=tk.BOTH, expand=True)
             
             # Update economy graph
-            fig2, ax2 = plt.subplots(figsize=(5, 6))
+            fig2, ax2 = plt.subplots(figsize=(4, 4))
             economy_rates = [round(bowler["runs"] / float(bowler["overs"]), 2) for bowler in bowlers]
             
             bars = ax2.barh(names, economy_rates, color='#e74c3c', alpha=0.7)
@@ -2120,12 +2254,26 @@ Result: {header["status"]}
         over_scores1 = [team1_scores[i] - team1_scores[i-1] if i > 0 else team1_scores[0] for i in range(len(team1_scores))]
         over_scores2 = [team2_scores[i] - team2_scores[i-1] if i > 0 else team2_scores[0] for i in range(len(team2_scores))]
         
-        max_over1 = max(range(len(over_scores1)), key=lambda i: over_scores1[i])
-        max_over2 = max(range(len(over_scores2)), key=lambda i: over_scores2[i])
+        max_over1_idx = max(range(len(over_scores1)), key=lambda i: over_scores1[i])
+        max_over2_idx = max(range(len(over_scores2)), key=lambda i: over_scores2[i])
         
-        tk.Label(right_stats, text=f"Highest scoring over", font=("Arial", 10, "bold")).pack(anchor="w", pady=(5, 0))
-        tk.Label(right_stats, text=f"{team1_name}: {over_scores1[max_over1]} runs (over {overs[max_over1]})").pack(anchor="w")
-        tk.Label(right_stats, text=f"{team2_name}: {over_scores2[max_over2]} runs (over {overs[max_over2]})").pack(anchor="w")
+        self.create_progress_stat_card(right_stats, "Highest Scoring Over", 
+            f"{team1_name}: {over_scores1[max_over1_idx]} runs (over {overs[max_over1_idx]})\n{team2_name}: {over_scores2[max_over2_idx]} runs (over {overs[max_over2_idx]})")
+    
+    def create_progress_stat_card(self, parent, title, value):
+        """Create a styled stat card for the progress tab"""
+        card = tk.Frame(parent, bd=1, relief=tk.RAISED, padx=10, pady=10, bg='white')
+        card.pack(fill=tk.X, padx=5, pady=5)
+        
+        title_label = tk.Label(card, text=title, font=("Arial", 11, "bold"), bg='white', fg='#444')
+        title_label.pack(anchor='w')
+        
+        ttk.Separator(card, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=5)
+        
+        value_label = tk.Label(card, text=value, font=("Arial", 10), bg='white', justify=tk.LEFT)
+        value_label.pack(anchor='w')
+        
+        return card
     
     def export_data(self):
         """Export data to JSON file"""
@@ -2195,8 +2343,30 @@ Result: {header["status"]}
         analysis_window.title("Detailed Match Analysis")
         analysis_window.geometry("800x600")
         
+        # Create main frame with scrollbars
+        main_frame = tk.Frame(analysis_window)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Add canvas and scrollbars for scrolling
+        canvas = tk.Canvas(main_frame)
+        v_scrollbar = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=canvas.yview)
+        h_scrollbar = ttk.Scrollbar(main_frame, orient=tk.HORIZONTAL, command=canvas.xview)
+        
+        # Configure scrollbars
+        v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        h_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # Configure canvas
+        canvas.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        
+        # Create a frame inside the canvas to hold the content
+        content_frame = tk.Frame(canvas)
+        canvas.create_window((0, 0), window=content_frame, anchor="nw")
+        
         # Create a notebook with tabs
-        notebook = ttk.Notebook(analysis_window)
+        notebook = ttk.Notebook(content_frame)
         notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # Head to head tab
@@ -2328,9 +2498,10 @@ Result: {header["status"]}
         radar_frame = tk.Frame(perf_tab)
         radar_frame.pack(fill=tk.BOTH, expand=True)
         
-        canvas = FigureCanvasTkAgg(fig, radar_frame)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        # Rename the variable to avoid conflict with the scrolling canvas
+        figure_canvas = FigureCanvasTkAgg(fig, radar_frame)
+        figure_canvas.draw()
+        figure_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # Add text analysis
         text_frame = ttk.LabelFrame(perf_tab, text="Performance Insights", padding=10)
@@ -2355,23 +2526,158 @@ This analysis is based on key performance metrics normalized across both teams.
         analysis_text_widget.pack(fill=tk.BOTH, expand=True)
         analysis_text_widget.insert(tk.END, analysis_text)
         analysis_text_widget.config(state=tk.DISABLED)
-
+        
+        # Update the canvas scrollregion after all widgets are added
+        content_frame.update_idletasks()
+        canvas.config(scrollregion=canvas.bbox("all"))
+    
     def change_match_id(self):
-        """Allow user to change match ID and reload data"""
-        new_match_id = simpledialog.askstring("Change Match ID", 
-                                           "Enter new cricket match ID:", 
-                                           initialvalue=self.match_id)
-        if new_match_id and new_match_id != self.match_id:
-            self.match_id = new_match_id
-            # Update the match ID button text in the sidebar
-            for widget in self.root.winfo_children():
-                if isinstance(widget, tk.Frame) and widget.winfo_width() == 200:  # Sidebar
-                    for child in widget.winfo_children():
-                        if isinstance(child, ttk.Button) and "Match ID" in child.cget("text"):
-                            child.config(text=f"Change Match ID ({self.match_id})")
-                            break
-            # Fetch new data
-            self.fetch_data()
+        """Allow user to change match ID and reload data using a dropdown"""
+        # Create a custom dialog window
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Change Match ID")
+        dialog.geometry("400x250")
+        dialog.transient(self.root)  # Make dialog float on top of the main window
+        dialog.grab_set()  # Make dialog modal
+        dialog.resizable(False, False)
+        
+        # Configure background
+        dialog.configure(bg="#f0f0f0")
+        
+        # Add some padding
+        padding_frame = tk.Frame(dialog, bg="#f0f0f0", padx=20, pady=20)
+        padding_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Add header
+        header_label = tk.Label(
+            padding_frame,
+            text="Select or Enter Match ID",
+            font=("Arial", 14, "bold"),
+            bg="#f0f0f0"
+        )
+        header_label.pack(pady=(0, 20))
+        
+        # Frame for the dropdown
+        dropdown_frame = tk.Frame(padding_frame, bg="#f0f0f0")
+        dropdown_frame.pack(fill=tk.X, pady=10)
+        
+        # Label for the dropdown
+        dropdown_label = tk.Label(
+            dropdown_frame,
+            text="Select Match ID:",
+            font=("Arial", 12),
+            bg="#f0f0f0"
+        )
+        dropdown_label.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Predefined match IDs
+        match_ids = ["112469", "112462", "112455", "112420", "112402"]
+        
+        # Add current ID if not in list
+        if self.match_id not in match_ids:
+            match_ids.insert(0, self.match_id)
+            
+        # Create StringVar for the dropdown
+        selected_id = tk.StringVar(value=self.match_id)
+        
+        # Create the dropdown
+        id_dropdown = ttk.Combobox(
+            dropdown_frame,
+            textvariable=selected_id,
+            values=match_ids,
+            width=15,
+            font=("Arial", 12)
+        )
+        id_dropdown.pack(side=tk.LEFT)
+        
+        # OR separator
+        separator_frame = tk.Frame(padding_frame, bg="#f0f0f0", pady=10)
+        separator_frame.pack(fill=tk.X)
+        
+        left_line = ttk.Separator(separator_frame, orient="horizontal")
+        left_line.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+        
+        or_label = tk.Label(separator_frame, text="OR", bg="#f0f0f0")
+        or_label.pack(side=tk.LEFT, padx=10)
+        
+        right_line = ttk.Separator(separator_frame, orient="horizontal")
+        right_line.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(10, 0))
+        
+        # Custom entry frame
+        entry_frame = tk.Frame(padding_frame, bg="#f0f0f0")
+        entry_frame.pack(fill=tk.X, pady=10)
+        
+        # Label for custom entry
+        entry_label = tk.Label(
+            entry_frame,
+            text="Enter Custom ID:",
+            font=("Arial", 12),
+            bg="#f0f0f0"
+        )
+        entry_label.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Entry for custom match ID
+        custom_entry = ttk.Entry(entry_frame, width=15, font=("Arial", 12))
+        custom_entry.pack(side=tk.LEFT)
+        custom_entry.insert(0, self.match_id)
+        
+        # Button frame
+        button_frame = tk.Frame(padding_frame, bg="#f0f0f0", pady=20)
+        button_frame.pack(fill=tk.X)
+        
+        # Cancel button
+        cancel_button = ttk.Button(
+            button_frame,
+            text="Cancel",
+            command=dialog.destroy
+        )
+        cancel_button.pack(side=tk.LEFT, padx=10)
+        
+        # Function to handle dialog submission
+        def on_submit():
+            # Get the ID from dropdown or entry
+            new_id = custom_entry.get().strip() if custom_entry.get().strip() else selected_id.get()
+            
+            # Check if ID is valid and different
+            if new_id and new_id != self.match_id:
+                self.match_id = new_id
+                # Update the match ID button text in the sidebar
+                for widget in self.root.winfo_children():
+                    if isinstance(widget, tk.Frame) and widget.winfo_width() == 200:  # Sidebar
+                        for child in widget.winfo_children():
+                            if isinstance(child, ttk.Button) and "Match ID" in child.cget("text"):
+                                child.config(text=f"Change Match ID ({self.match_id})")
+                                break
+                # Fetch new data
+                self.fetch_data()
+            
+            # Close the dialog
+            dialog.destroy()
+        
+        # Submit button
+        submit_button = ttk.Button(
+            button_frame,
+            text="Load Match",
+            command=on_submit
+        )
+        submit_button.pack(side=tk.RIGHT, padx=10)
+        
+        # Bind enter key to submit
+        dialog.bind("<Return>", lambda event: on_submit())
+        
+        # Center the dialog on the parent window
+        dialog.update_idletasks()
+        width = dialog.winfo_width()
+        height = dialog.winfo_height()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (width // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (height // 2)
+        dialog.geometry(f"{width}x{height}+{x}+{y}")
+        
+        # Set focus on the dropdown
+        id_dropdown.focus_set()
+        
+        # Wait for the dialog to be closed
+        dialog.wait_window()
 
 
 if __name__ == "__main__":
