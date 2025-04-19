@@ -14,7 +14,7 @@ class CricketDashboard:
     def __init__(self, root):
         self.root = root
         self.root.title("Cricket Match Dashboard")
-        self.root.geometry("1200x800")
+        self.root.geometry("1600x800")
         self.root.configure(bg="#f0f0f0")
         
         # Initialize data
@@ -23,6 +23,8 @@ class CricketDashboard:
         self.teams = []
         self.selected_team = tk.StringVar()
         self.selected_view = tk.StringVar(value="Overview")
+        self.match_selection_done_var = tk.BooleanVar(value=False)
+        self.selected_match_id = "117962"  # Default match ID
         
         # Threading control
         self.is_fetching = False
@@ -31,9 +33,45 @@ class CricketDashboard:
         self.failed_attempts = 0
         self.max_retry_attempts = 3
         
-        # Get match ID from user
+        # Define colors for theme
+        self.colors = {
+            "primary": "#3498db",
+            "secondary": "#2c3e50",
+            "accent": "#e74c3c",
+            "bg_light": "#f0f0f0",
+            "text": "#333333",
+            "text_light": "#ffffff",
+            "success": "#2ecc71",
+            "warning": "#f39c12",
+            "error": "#e74c3c"
+        }
+        
+        # Show match selection screen to get match ID
         self.match_id = self.get_match_id()
         
+        # Create main dashboard after match is selected
+        self.setup_main_dashboard()
+        
+        # Set up protocol for window close
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+    
+    def get_match_id(self):
+        """Show match selection screen and return selected match ID"""
+        # Show the match selection screen
+        self.show_match_selection_screen()
+        
+        # Create a special mainloop just for the selection screen
+        self.root.wait_variable(self.match_selection_done_var)
+        
+        # Return the selected match ID
+        return self.selected_match_id
+    
+    def setup_main_dashboard(self):
+        """Setup the main dashboard after match selection"""
+        # Clear any existing widgets from the selection screen
+        for widget in self.root.winfo_children():
+            widget.destroy()
+            
         # Create main frames
         self.create_header_frame()
         self.create_sidebar()
@@ -44,16 +82,403 @@ class CricketDashboard:
         
         # Start auto-refresh
         self.start_auto_refresh()
-        
-        # Set up protocol for window close
-        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
     
-    def get_match_id(self):
-        """Get match ID from user"""
-        match_id = simpledialog.askstring("Match ID", "Enter cricket match ID:", initialvalue="112469")
-        if not match_id:
-            match_id = "115102"  # Default match ID if user cancels
-        return match_id
+    def load_matches_data(self):
+        """Load match data from the API or sample JSON file"""
+        try:
+            # Start loading animation
+            self.status_label.config(text="Loading match data...")
+            
+            # Try to load data from sample JSON first
+            try:
+                with open('result_matchid.json', 'r') as f:
+                    matches_data = json.load(f)
+                self.populate_match_selection(matches_data)
+                self.status_label.config(text="Matches loaded from local data.")
+            except (FileNotFoundError, json.JSONDecodeError):
+                # If local data not available, fetch from API
+                # This uses the API endpoint shown in your code
+                url = "https://cricbuzz-cricket.p.rapidapi.com/matches/v1/live"
+                headers = {
+                    "x-rapidapi-key": "4ade6f2361msh57ccf4cb0584770p18e418jsnc58ddc583a78",
+                    "x-rapidapi-host": "cricbuzz-cricket.p.rapidapi.com"
+                }
+                
+                response = requests.get(url, headers=headers)
+                if response.status_code == 200:
+                    matches_data = response.json()
+                    self.populate_match_selection(matches_data)
+                    self.status_label.config(text="Matches loaded from API.")
+                else:
+                    self.status_label.config(text=f"Error fetching data: {response.status_code}")
+                    messagebox.showerror("API Error", f"Failed to fetch match data: {response.status_code}")
+        except Exception as e:
+            self.status_label.config(text=f"Error: {str(e)}")
+            messagebox.showerror("Error", f"Failed to load match data: {str(e)}")
+    
+    def populate_match_selection(self, matches_data):
+        """Populate the match selection screen with data from the API"""
+        # Clear any existing match cards
+        for widget in self.live_matches_frame.winfo_children():
+            widget.destroy()
+        for widget in self.recent_matches_frame.winfo_children():
+            widget.destroy()
+            
+        # Process match data for each category
+        live_matches = []
+        recent_matches = []
+        
+        # Extract matches from different types
+        for match_type in matches_data.get("typeMatches", []):
+            type_name = match_type.get("matchType", "")
+            
+            for series_match in match_type.get("seriesMatches", []):
+                if "seriesAdWrapper" in series_match:
+                    series_data = series_match["seriesAdWrapper"]
+                    series_name = series_data.get("seriesName", "")
+                    
+                    for match in series_data.get("matches", []):
+                        match_info = match.get("matchInfo", {})
+                        status = match_info.get("state", "")
+                        
+                        match_data = {
+                            "id": match_info.get("matchId", ""),
+                            "series": series_name,
+                            "description": match_info.get("matchDesc", ""),
+                            "format": match_info.get("matchFormat", ""),
+                            "status": match_info.get("status", ""),
+                            "state": status,
+                            "team1": match_info.get("team1", {}).get("teamName", ""),
+                            "team2": match_info.get("team2", {}).get("teamName", ""),
+                            "venue": match_info.get("venueInfo", {}).get("ground", ""),
+                            "city": match_info.get("venueInfo", {}).get("city", ""),
+                            "type": type_name
+                        }
+                        
+                        # Get score data if available
+                        if "matchScore" in match:
+                            score_data = match["matchScore"]
+                            
+                            team1_score = score_data.get("team1Score", {})
+                            if team1_score and "inngs1" in team1_score:
+                                innings1 = team1_score["inngs1"]
+                                match_data["team1_score"] = f"{innings1.get('runs', 0)}/{innings1.get('wickets', 0)} ({innings1.get('overs', 0)} ov)"
+                            else:
+                                match_data["team1_score"] = "Yet to bat"
+                                
+                            team2_score = score_data.get("team2Score", {})
+                            if team2_score and "inngs1" in team2_score:
+                                innings2 = team2_score["inngs1"]
+                                match_data["team2_score"] = f"{innings2.get('runs', 0)}/{innings2.get('wickets', 0)} ({innings2.get('overs', 0)} ov)"
+                            else:
+                                match_data["team2_score"] = "Yet to bat"
+                        else:
+                            match_data["team1_score"] = "No score"
+                            match_data["team2_score"] = "No score"
+                        
+                        # Categorize matches as live or recent
+                        if status in ["In Progress", "Live", "Innings Break", "Tea", "Lunch", "Drinks", "Stumps", "Rain"]:
+                            live_matches.append(match_data)
+                        else:
+                            recent_matches.append(match_data)
+        
+        # Sort matches - live by state, recent by recency
+        live_matches.sort(key=lambda x: 0 if x["state"] == "In Progress" else 1)
+        
+        # Create match cards for live matches
+        if live_matches:
+            for match in live_matches:
+                self.create_match_card(self.live_matches_frame, match)
+        else:
+            no_matches_label = tk.Label(
+                self.live_matches_frame,
+                text="No live matches available",
+                font=("Arial", 12),
+                bg=self.colors["bg_light"],
+                fg=self.colors["text"],
+                pady=20
+            )
+            no_matches_label.pack()
+        
+        # Create match cards for recent matches
+        if recent_matches:
+            # Show max 10 recent matches
+            for match in recent_matches[:10]:
+                self.create_match_card(self.recent_matches_frame, match)
+        else:
+            no_matches_label = tk.Label(
+                self.recent_matches_frame,
+                text="No recent matches available",
+                font=("Arial", 12),
+                bg=self.colors["bg_light"],
+                fg=self.colors["text"],
+                pady=20
+            )
+            no_matches_label.pack()
+    
+    def create_match_card(self, parent_frame, match_data):
+        """Create a card for a match in the selection screen"""
+        # Create card frame
+        card_frame = tk.Frame(
+            parent_frame, 
+            bg="white",
+            relief=tk.RIDGE,
+            bd=1,
+            padx=10,
+            pady=10
+        )
+        card_frame.pack(fill=tk.X, padx=10, pady=5)
+        
+        # Top row with series name and format
+        top_row = tk.Frame(card_frame, bg="white")
+        top_row.pack(fill=tk.X)
+        
+        series_label = tk.Label(
+            top_row,
+            text=match_data["series"],
+            font=("Arial", 9),
+            bg="white",
+            fg="#666666"
+        )
+        series_label.pack(side=tk.LEFT)
+        
+        format_label = tk.Label(
+            top_row,
+            text=match_data["format"],
+            font=("Arial", 9, "bold"),
+            bg="white",
+            fg=self.colors["accent"]
+        )
+        format_label.pack(side=tk.RIGHT)
+        
+        # Team names and scores
+        teams_frame = tk.Frame(card_frame, bg="white", pady=5)
+        teams_frame.pack(fill=tk.X)
+        
+        # Team 1
+        team1_frame = tk.Frame(teams_frame, bg="white")
+        team1_frame.pack(fill=tk.X)
+        
+        team1_name = tk.Label(
+            team1_frame,
+            text=match_data["team1"],
+            font=("Arial", 11, "bold"),
+            bg="white",
+            anchor="w"
+        )
+        team1_name.pack(side=tk.LEFT)
+        
+        team1_score = tk.Label(
+            team1_frame,
+            text=match_data.get("team1_score", ""),
+            font=("Arial", 11),
+            bg="white",
+            anchor="e"
+        )
+        team1_score.pack(side=tk.RIGHT)
+        
+        # Team 2
+        team2_frame = tk.Frame(teams_frame, bg="white")
+        team2_frame.pack(fill=tk.X)
+        
+        team2_name = tk.Label(
+            team2_frame,
+            text=match_data["team2"],
+            font=("Arial", 11, "bold"),
+            bg="white",
+            anchor="w"
+        )
+        team2_name.pack(side=tk.LEFT)
+        
+        team2_score = tk.Label(
+            team2_frame,
+            text=match_data.get("team2_score", ""),
+            font=("Arial", 11),
+            bg="white",
+            anchor="e"
+        )
+        team2_score.pack(side=tk.RIGHT)
+        
+        # Match status
+        status_frame = tk.Frame(card_frame, bg="white", pady=5)
+        status_frame.pack(fill=tk.X)
+        
+        status_label = tk.Label(
+            status_frame,
+            text=match_data["status"],
+            font=("Arial", 10),
+            bg="white",
+            fg="#2c3e50" if match_data["state"] != "In Progress" else "#e74c3c"
+        )
+        status_label.pack(side=tk.LEFT)
+        
+        # Venue info
+        if match_data.get("venue"):
+            venue_text = f"{match_data['venue']}, {match_data['city']}" if match_data.get("city") else match_data["venue"]
+            venue_label = tk.Label(
+                status_frame,
+                text=venue_text,
+                font=("Arial", 9),
+                bg="white",
+                fg="#666666"
+            )
+            venue_label.pack(side=tk.RIGHT)
+        
+        # Button to select match
+        select_button = tk.Button(
+            card_frame,
+            text="Select Match",
+            bg=self.colors["accent"],
+            fg="white",
+            font=("Arial", 10),
+            padx=10,
+            pady=5,
+            command=lambda id=match_data["id"]: self.load_match_from_selection(id)
+        )
+        select_button.pack(pady=(5, 0))
+    
+    def load_match_from_selection(self, match_id):
+        """Load the selected match and close the selection screen"""
+        self.selected_match_id = match_id
+        self.match_selection_done_var.set(True)  # Signal that selection is done
+    
+    def load_match_from_entry(self):
+        """Load match from manually entered ID"""
+        match_id = self.manual_entry.get().strip()
+        if match_id:
+            self.load_match_from_selection(match_id)
+        else:
+            messagebox.showwarning("Input Error", "Please enter a valid match ID")
+    
+    def show_match_selection_screen(self):
+        """Show the match selection screen"""
+        # Clear any existing widgets
+        for widget in self.root.winfo_children():
+            widget.destroy()
+            
+        # Create main frame for match selection
+        self.selection_frame = tk.Frame(self.root, bg=self.colors["bg_light"])
+        self.selection_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Header
+        header_frame = tk.Frame(self.selection_frame, bg=self.colors["primary"], pady=15)
+        header_frame.pack(fill=tk.X)
+        
+        header_label = tk.Label(
+            header_frame, 
+            text="Cricket Dashboard - Match Selection",
+            font=("Arial", 18, "bold"),
+            bg=self.colors["primary"],
+            fg=self.colors["text_light"]
+        )
+        header_label.pack()
+        
+        # Main content frame with two columns
+        content_frame = tk.Frame(self.selection_frame, bg=self.colors["bg_light"], padx=20, pady=20)
+        content_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Left column - Live Matches
+        live_frame = tk.Frame(content_frame, bg=self.colors["bg_light"], relief=tk.RIDGE, bd=1)
+        live_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10), pady=10)
+        
+        # Title for Live Matches
+        live_title_frame = tk.Frame(live_frame, bg=self.colors["accent"], padx=10, pady=5)
+        live_title_frame.pack(fill=tk.X)
+        
+        tk.Label(
+            live_title_frame,
+            text="Live Matches",
+            font=("Arial", 14, "bold"),
+            bg=self.colors["accent"],
+            fg=self.colors["text_light"]
+        ).pack(anchor="w")
+        
+        # Create scrollable area for live matches
+        live_canvas = tk.Canvas(live_frame, bg=self.colors["bg_light"])
+        live_scrollbar = ttk.Scrollbar(live_frame, orient="vertical", command=live_canvas.yview)
+        
+        self.live_matches_frame = tk.Frame(live_canvas, bg=self.colors["bg_light"])
+        self.live_matches_frame.bind(
+            "<Configure>",
+            lambda e: live_canvas.configure(scrollregion=live_canvas.bbox("all"))
+        )
+        
+        live_canvas.create_window((0, 0), window=self.live_matches_frame, anchor="nw")
+        live_canvas.configure(yscrollcommand=live_scrollbar.set)
+        
+        live_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+        live_scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=10)
+        
+        # Right column - Recent Matches
+        recent_frame = tk.Frame(content_frame, bg=self.colors["bg_light"], relief=tk.RIDGE, bd=1)
+        recent_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0), pady=10)
+        
+        # Title for Recent Matches
+        recent_title_frame = tk.Frame(recent_frame, bg=self.colors["accent"], padx=10, pady=5)
+        recent_title_frame.pack(fill=tk.X)
+        
+        tk.Label(
+            recent_title_frame,
+            text="Recent Matches",
+            font=("Arial", 14, "bold"),
+            bg=self.colors["accent"],
+            fg=self.colors["text_light"]
+        ).pack(anchor="w")
+        
+        # Create scrollable area for recent matches
+        recent_canvas = tk.Canvas(recent_frame, bg=self.colors["bg_light"])
+        recent_scrollbar = ttk.Scrollbar(recent_frame, orient="vertical", command=recent_canvas.yview)
+        
+        self.recent_matches_frame = tk.Frame(recent_canvas, bg=self.colors["bg_light"])
+        self.recent_matches_frame.bind(
+            "<Configure>",
+            lambda e: recent_canvas.configure(scrollregion=recent_canvas.bbox("all"))
+        )
+        
+        recent_canvas.create_window((0, 0), window=self.recent_matches_frame, anchor="nw")
+        recent_canvas.configure(yscrollcommand=recent_scrollbar.set)
+        
+        recent_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+        recent_scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=10)
+        
+        # Manual entry section
+        manual_frame = tk.Frame(self.selection_frame, bg=self.colors["bg_light"], pady=15)
+        manual_frame.pack(fill=tk.X, side=tk.BOTTOM, padx=20)
+        
+        tk.Label(
+            manual_frame,
+            text="Or enter match ID manually:",
+            font=("Arial", 11),
+            bg=self.colors["bg_light"]
+        ).pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.manual_entry = tk.Entry(manual_frame, width=15, font=("Arial", 11))
+        self.manual_entry.pack(side=tk.LEFT, padx=(0, 10))
+        
+        manual_button = tk.Button(
+            manual_frame,
+            text="Load Match",
+            bg=self.colors["accent"],
+            fg=self.colors["text_light"],
+            font=("Arial", 11),
+            padx=10,
+            command=self.load_match_from_entry
+        )
+        manual_button.pack(side=tk.LEFT)
+        
+        # Status label
+        self.status_label = tk.Label(
+            self.selection_frame,
+            text="Loading match data...",
+            font=("Arial", 10),
+            bg=self.colors["bg_light"],
+            fg=self.colors["text"],
+            pady=5
+        )
+        self.status_label.pack(side=tk.BOTTOM, fill=tk.X, padx=20)
+        
+        # Load match data
+        self.load_matches_data()
     
     def on_close(self):
         """Handle window close event"""
