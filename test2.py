@@ -94,7 +94,8 @@ class CricketDashboard:
             # Make API call to fetch live matches
             url = "https://cricbuzz-cricket.p.rapidapi.com/matches/v1/live"
             headers = {
-                "x-rapidapi-key": "4ade6f2361msh57ccf4cb0584770p18e418jsnc58ddc583a78",
+                # "x-rapidapi-key": "4ade6f2361msh57ccf4cb0584770p18e418jsnc58ddc583a78", #not working key(284 id)
+                "x-rapidapi-key": "17c4bae87fmsh204730bfc3da945p101869jsn2a8ef0d22e5d", #working key
                 "x-rapidapi-host": "cricbuzz-cricket.p.rapidapi.com"
             }
             
@@ -1050,7 +1051,8 @@ class CricketDashboard:
             # Make the API call with the user-provided match ID
             url = f"https://cricbuzz-cricket.p.rapidapi.com/mcenter/v1/{self.match_id}/hscard"
             headers = {
-                "x-rapidapi-key": "4ade6f2361msh57ccf4cb0584770p18e418jsnc58ddc583a78",
+                # "x-rapidapi-key": "4ade6f2361msh57ccf4cb0584770p18e418jsnc58ddc583a78", #not working key(284 id)
+                "x-rapidapi-key": "17c4bae87fmsh204730bfc3da945p101869jsn2a8ef0d22e5d", #working key
                 "x-rapidapi-host": "cricbuzz-cricket.p.rapidapi.com"
             }
             response = requests.get(url, headers=headers, timeout=10)  # Add timeout
@@ -1537,11 +1539,11 @@ Result: {header["status"]}
         
         # Create frame for graphs
         graphs_frame = tk.Frame(self.batting_tab)
-        graphs_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        graphs_frame.pack(fill=tk.BOTH, expand=True)
         
         # Left graph: Runs scored by batsmen
-        runs_frame = ttk.LabelFrame(graphs_frame, text="Runs by Batsmen", padding=5)
-        runs_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+        runs_frame = ttk.LabelFrame(graphs_frame, text="Runs by Batsmen")
+        runs_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 3))
         
         fig1, ax1 = plt.subplots(figsize=(4, 4))
                 
@@ -1562,14 +1564,15 @@ Result: {header["status"]}
             width = bar.get_width()
             ax1.text(width + 1, bar.get_y() + bar.get_height()/2, f'{width}', 
                      ha='left', va='center')
-        
+        plt.tight_layout()
+        fig1.subplots_adjust(left=0.25)
         canvas1 = FigureCanvasTkAgg(fig1, runs_frame)
         canvas1.draw()
         canvas1.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
         # Right graph: Strike rates
-        strike_frame = ttk.LabelFrame(graphs_frame, text="Batsmen Strike Rates", padding=5)
-        strike_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
+        strike_frame = ttk.LabelFrame(graphs_frame, text="Batsmen Strike Rates")
+        strike_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(3, 0))
         
         fig2, ax2 = plt.subplots(figsize=(4, 4))
         
@@ -1586,7 +1589,8 @@ Result: {header["status"]}
             width = bar.get_width()
             ax2.text(width + 1, bar.get_y() + bar.get_height()/2, f'{width}', 
                      ha='left', va='center')
-        
+        plt.tight_layout()
+        fig1.subplots_adjust(left=0.25)
         canvas2 = FigureCanvasTkAgg(fig2, strike_frame)
         canvas2.draw()
         canvas2.get_tk_widget().pack(fill=tk.BOTH, expand=True)
@@ -1655,42 +1659,101 @@ Result: {header["status"]}
                 ))
             
             # Update first graph based on analysis type
-            fig1, ax1 = plt.subplots(figsize=(4, 4))
+            fig1, ax1 = plt.subplots(figsize=(5, 4))
             
             if analysis_type == "Runs Distribution":
-                runs = [batsman["runs"] for batsman in batsmen]
-                bars = ax1.barh(names, runs, color='#3498db', alpha=0.7)
+                # Sort data by runs (descending)
+                sorted_indices = sorted(range(len(names)), key=lambda i: runs[i], reverse=True)
+                sorted_names = [names[i] for i in sorted_indices]
+                sorted_runs = [runs[i] for i in sorted_indices]
+                
+                # Create horizontal bar chart
+                bars = ax1.barh(sorted_names, sorted_runs, color='#3498db', alpha=0.7)
                 ax1.set_xlabel('Runs')
-                ax1.set_title('Top Batsmen Performance')
+                ax1.set_title('Runs by Batsmen')
+                
+                # Add values at the end of bars
+                for bar in bars:
+                    width = bar.get_width()
+                    ax1.text(width + 0.5, bar.get_y() + bar.get_height()/2, f'{int(width)}', 
+                            ha='left', va='center')
+                
+                # Ensure y-labels are fully visible
+                plt.tight_layout()
+                fig1.subplots_adjust(left=0.25)  # Add more padding on left for names
+            
             elif analysis_type == "Balls Faced":
-                balls = [batsman["balls"] for batsman in batsmen]
-                bars = ax1.barh(names, balls, color='#2ecc71', alpha=0.7)
+                # Sort data by balls faced (descending)
+                sorted_indices = sorted(range(len(names)), key=lambda i: balls[i], reverse=True)
+                sorted_names = [names[i] for i in sorted_indices]
+                sorted_balls = [balls[i] for i in sorted_indices]
+                
+                # Create horizontal bar chart
+                bars = ax1.barh(sorted_names, sorted_balls, color='#9b59b6', alpha=0.7)
                 ax1.set_xlabel('Balls Faced')
                 ax1.set_title('Balls Faced by Batsmen')
+                
+                # Add values at the end of bars
+                for bar in bars:
+                    width = bar.get_width()
+                    ax1.text(width + 0.5, bar.get_y() + bar.get_height()/2, f'{int(width)}', 
+                            ha='left', va='center')
+                            
+                # Ensure y-labels are fully visible
+                plt.tight_layout()
+                fig1.subplots_adjust(left=0.25)  # Add more padding on left for names
+            
             elif analysis_type == "Strike Rate":
+                # Sort data by strike rate (descending)
                 strike_rates = [round((batsman["runs"] / batsman["balls"]) * 100, 1) for batsman in batsmen]
-                bars = ax1.barh(names, strike_rates, color='#e74c3c', alpha=0.7)
+                sorted_indices = sorted(range(len(names)), key=lambda i: strike_rates[i], reverse=True)
+                sorted_names = [names[i] for i in sorted_indices]
+                sorted_strike_rates = [strike_rates[i] for i in sorted_indices]
+                
+                # Create horizontal bar chart
+                bars = ax1.barh(sorted_names, sorted_strike_rates, color='#e74c3c', alpha=0.7)
                 ax1.set_xlabel('Strike Rate')
                 ax1.set_title('Batsmen Strike Rates')
+                
+                # Add values at the end of bars
+                for bar in bars:
+                    width = bar.get_width()
+                    ax1.text(width + 0.5, bar.get_y() + bar.get_height()/2, f'{width}', 
+                            ha='left', va='center')
+                
+                # Ensure y-labels are fully visible
+                plt.tight_layout()
+                fig1.subplots_adjust(left=0.25)  # Add more padding on left for names
+                
             elif analysis_type == "Boundary %":
+                # Calculate and sort by boundary percentage
                 boundary_pcts = [round(((batsman["fours"] * 4 + batsman["sixes"] * 6) / batsman["runs"]) * 100, 1) 
                                 if batsman["runs"] > 0 else 0 for batsman in batsmen]
-                bars = ax1.barh(names, boundary_pcts, color='#9b59b6', alpha=0.7)
+                sorted_indices = sorted(range(len(names)), key=lambda i: boundary_pcts[i], reverse=True)
+                sorted_names = [names[i] for i in sorted_indices]
+                sorted_boundary_pcts = [boundary_pcts[i] for i in sorted_indices]
+                
+                # Create horizontal bar chart
+                bars = ax1.barh(sorted_names, sorted_boundary_pcts, color='#9b59b6', alpha=0.7)
                 ax1.set_xlabel('Boundary %')
                 ax1.set_title('Percentage of Runs from Boundaries')
-            
-            # Add values at the end of bars
-            for bar in bars:
-                width = bar.get_width()
-                ax1.text(width + 1, bar.get_y() + bar.get_height()/2, f'{width}', 
-                         ha='left', va='center')
+                
+                # Add values at the end of bars
+                for bar in bars:
+                    width = bar.get_width()
+                    ax1.text(width + 0.5, bar.get_y() + bar.get_height()/2, f'{width}', 
+                            ha='left', va='center')
+                
+                # Ensure y-labels are fully visible
+                plt.tight_layout()
+                fig1.subplots_adjust(left=0.25)  # Add more padding on left for names
             
             canvas1 = FigureCanvasTkAgg(fig1, runs_frame)
             canvas1.draw()
             canvas1.get_tk_widget().pack(fill=tk.BOTH, expand=True)
             
             # Update second graph
-            fig2, ax2 = plt.subplots(figsize=(4, 4))
+            fig2, ax2 = plt.subplots(figsize=(5, 4))
             
             # Pie chart showing runs from boundaries vs non-boundaries
             total_runs = sum(batsman["runs"] for batsman in innings["batsmen"])
@@ -1742,7 +1805,7 @@ Result: {header["status"]}
         wickets_frame = ttk.LabelFrame(graphs_frame, text="Wickets by Bowlers")
         wickets_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 3))
         
-        fig1, ax1 = plt.subplots(figsize=(4, 4))
+        fig1, ax1 = plt.subplots(figsize=(5, 4))
         
         # Get data for the second innings (bowling figures for first team)
         innings = self.match_data["scoreCard"][1]  # Second innings
@@ -1751,8 +1814,13 @@ Result: {header["status"]}
         names = [bowler["name"] for bowler in bowlers]
         wickets = [bowler["wickets"] for bowler in bowlers]
         
+        # Sort data by wickets (descending)
+        sorted_indices = sorted(range(len(names)), key=lambda i: wickets[i], reverse=True)
+        sorted_names = [names[i] for i in sorted_indices]
+        sorted_wickets = [wickets[i] for i in sorted_indices]
+        
         # Create horizontal bar chart
-        bars = ax1.barh(names, wickets, color='#3498db', alpha=0.7)
+        bars = ax1.barh(sorted_names, sorted_wickets, color='#3498db', alpha=0.7)
         ax1.set_xlabel('Wickets')
         ax1.set_title('Wickets by Bowlers')
         
@@ -1760,31 +1828,44 @@ Result: {header["status"]}
         for bar in bars:
             width = bar.get_width()
             ax1.text(width + 0.1, bar.get_y() + bar.get_height()/2, f'{width}', 
-                     ha='left', va='center')
+                    ha='left', va='center')
+        
+        # Ensure y-labels are fully visible
+        plt.tight_layout()
+        fig1.subplots_adjust(left=0.25)  # Add more padding on left for names
         
         canvas1 = FigureCanvasTkAgg(fig1, wickets_frame)
         canvas1.draw()
         canvas1.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
         # Right graph: Economy rates
-        economy_frame = ttk.LabelFrame(graphs_frame, text="Bowler Economy Rates")
-        economy_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        economy_frame = ttk.LabelFrame(graphs_frame, text="Economy Rates")
+        economy_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(3, 0))
         
-        fig2, ax2 = plt.subplots(figsize=(4, 4))
+        fig2, ax2 = plt.subplots(figsize=(5, 4))
         
         # Calculate economy rates
-        economy_rates = [round(bowler["runs"] / float(bowler["overs"]), 2) for bowler in bowlers]
+        economy = [round(bowler["runs"] / float(bowler["overs"]), 2) for bowler in bowlers]
         
-        # Create horizontal bar chart with different color
-        bars = ax2.barh(names, economy_rates, color='#e74c3c', alpha=0.7)
+        # Sort data by economy (ascending - lower is better)
+        sorted_indices = sorted(range(len(names)), key=lambda i: economy[i])
+        sorted_names = [names[i] for i in sorted_indices]
+        sorted_economy = [economy[i] for i in sorted_indices]
+        
+        # Create horizontal bar chart
+        bars = ax2.barh(sorted_names, sorted_economy, color='#e74c3c', alpha=0.7)
         ax2.set_xlabel('Economy Rate')
-        ax2.set_title('Bowler Economy Rates')
+        ax2.set_title('Economy Rates')
         
         # Add values at the end of bars
         for bar in bars:
             width = bar.get_width()
             ax2.text(width + 0.1, bar.get_y() + bar.get_height()/2, f'{width}', 
-                     ha='left', va='center')
+                    ha='left', va='center')
+        
+        # Ensure y-labels are fully visible
+        plt.tight_layout()
+        fig2.subplots_adjust(left=0.25)  # Add more padding on left for names
         
         canvas2 = FigureCanvasTkAgg(fig2, economy_frame)
         canvas2.draw()
