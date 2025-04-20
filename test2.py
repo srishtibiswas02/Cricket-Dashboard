@@ -98,14 +98,19 @@ class CricketDashboard:
                 "x-rapidapi-key": "17c4bae87fmsh204730bfc3da945p101869jsn2a8ef0d22e5d", #working key
                 "x-rapidapi-host": "cricbuzz-cricket.p.rapidapi.com"
             }
-            
+            url_recent = "https://cricbuzz-cricket.p.rapidapi.com/matches/v1/recent"
+            headers_recent = {
+                "x-rapidapi-key": "17c4bae87fmsh204730bfc3da945p101869jsn2a8ef0d22e5d",
+                "x-rapidapi-host": "cricbuzz-cricket.p.rapidapi.com"
+            }
             try:
                 response = requests.get(url, headers=headers, timeout=15)
-                
+                response_recent = requests.get(url_recent, headers=headers_recent, timeout=15)
                 if response.status_code == 200:
                     matches_data = response.json()
-                    self.populate_match_selection(matches_data)
-                    
+                    matches_data_recent = response_recent.json()
+                    self.populate_match_selection(matches_data, matches_data_recent)
+                                        
                     if hasattr(self, 'status_label'):
                         self.status_label.config(text=f"Live matches loaded - {datetime.now().strftime('%H:%M:%S')}")
                 elif response.status_code == 429:
@@ -279,9 +284,9 @@ class CricketDashboard:
         # Populate the match selection with the sample data
         self.populate_match_selection(sample_data)
     
-    def populate_match_selection(self, matches_data):
+    def populate_match_selection(self, matches_data, matches_data_recent):
         """Populate the match selection screen with data from the API"""
-        # Clear any existing match cards
+        
         for widget in self.live_matches_frame.winfo_children():
             widget.destroy()
         for widget in self.recent_matches_frame.winfo_children():
@@ -342,9 +347,59 @@ class CricketDashboard:
                         # Categorize matches as live or recent
                         if status in ["In Progress", "Live", "Innings Break", "Tea", "Lunch", "Drinks", "Stumps", "Rain"]:
                             live_matches.append(match_data)
-                        else:
-                            recent_matches.append(match_data)
         
+        # Process recent matches
+        for match_type in matches_data_recent.get("typeMatches", []):
+            type_name = match_type.get("matchType", "")
+            
+            for series_match in match_type.get("seriesMatches", []):
+                if "seriesAdWrapper" in series_match:
+                    series_data = series_match["seriesAdWrapper"]
+                    series_name = series_data.get("seriesName", "")
+                    
+                    for match in series_data.get("matches", []):
+                        match_info = match.get("matchInfo", {})
+                        status = match_info.get("state", "")
+                        
+                        match_data = {
+                            "id": match_info.get("matchId", ""),
+                            "series": series_name,
+                            "description": match_info.get("matchDesc", ""),
+                            "format": match_info.get("matchFormat", ""),
+                            "status": match_info.get("status", ""),
+                            "state": status,
+                            "team1": match_info.get("team1", {}).get("teamName", ""),
+                            "team2": match_info.get("team2", {}).get("teamName", ""),
+                            "venue": match_info.get("venueInfo", {}).get("ground", ""),
+                            "city": match_info.get("venueInfo", {}).get("city", ""),
+                            "type": type_name
+                        }
+                        
+                        # Get score data if available
+                        if "matchScore" in match:
+                            score_data = match["matchScore"]
+                            
+                            team1_score = score_data.get("team1Score", {})
+                            if team1_score and "inngs1" in team1_score:
+                                innings1 = team1_score["inngs1"]
+                                match_data["team1_score"] = f"{innings1.get('runs', 0)}/{innings1.get('wickets', 0)} ({innings1.get('overs', 0)} ov)"
+                            else:
+                                match_data["team1_score"] = "Yet to bat"
+                                
+                            team2_score = score_data.get("team2Score", {})
+                            if team2_score and "inngs1" in team2_score:
+                                innings2 = team2_score["inngs1"]
+                                match_data["team2_score"] = f"{innings2.get('runs', 0)}/{innings2.get('wickets', 0)} ({innings2.get('overs', 0)} ov)"
+                            else:
+                                match_data["team2_score"] = "Yet to bat"
+                        else:
+                            match_data["team1_score"] = "No score"
+                            match_data["team2_score"] = "No score"
+                        
+                        # Categorize matches as live or recent
+                        # if status in ["In Progress", "Live", "Innings Break", "Tea", "Lunch", "Drinks", "Stumps", "Rain"]:
+                        recent_matches.append(match_data)        
+                                  
         # Sort matches - live by state, recent by recency
         live_matches.sort(key=lambda x: 0 if x["state"] == "In Progress" else 1)
         
