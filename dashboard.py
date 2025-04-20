@@ -673,16 +673,31 @@ class CricketDashboard:
         live_scrollbar = ttk.Scrollbar(live_frame, orient="vertical", command=live_canvas.yview)
         
         self.live_matches_frame = tk.Frame(live_canvas, bg=self.colors["bg_light"])
-        self.live_matches_frame.bind(
-            "<Configure>",
-            lambda e: live_canvas.configure(scrollregion=live_canvas.bbox("all"))
-        )
         
-        live_canvas.create_window((0, 0), window=self.live_matches_frame, anchor="nw")
+        # Make sure the live matches frame has a fixed width equal to the canvas
+        def configure_live_frame(event):
+            # Update scrollregion to include all items
+            live_canvas.configure(scrollregion=live_canvas.bbox("all"))
+            # Set the frame width to match the canvas width minus padding
+            canvas_width = event.width
+            live_canvas.itemconfig(live_frame_id, width=canvas_width)
+            
+        self.live_matches_frame.bind("<Configure>", configure_live_frame)
+        
+        # Create the window with the frame - store the window ID for later use
+        live_frame_id = live_canvas.create_window((0, 0), window=self.live_matches_frame, anchor="nw", width=live_canvas.winfo_width())
+        
+        # Configure the canvas to expand and fill
         live_canvas.configure(yscrollcommand=live_scrollbar.set)
-        
         live_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
         live_scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=10)
+        
+        # Configure canvas to update width when resized
+        def on_live_canvas_configure(event):
+            canvas_width = event.width
+            live_canvas.itemconfig(live_frame_id, width=canvas_width)
+            
+        live_canvas.bind('<Configure>', on_live_canvas_configure)
         
         # Right column - Recent Matches
         recent_frame = tk.Frame(content_frame, bg=self.colors["bg_light"], relief=tk.RIDGE, bd=1)
@@ -705,16 +720,31 @@ class CricketDashboard:
         recent_scrollbar = ttk.Scrollbar(recent_frame, orient="vertical", command=recent_canvas.yview)
         
         self.recent_matches_frame = tk.Frame(recent_canvas, bg=self.colors["bg_light"])
-        self.recent_matches_frame.bind(
-            "<Configure>",
-            lambda e: recent_canvas.configure(scrollregion=recent_canvas.bbox("all"))
-        )
         
-        recent_canvas.create_window((0, 0), window=self.recent_matches_frame, anchor="nw")
+        # Make sure the recent matches frame has a fixed width equal to the canvas
+        def configure_recent_frame(event):
+            # Update scrollregion to include all items
+            recent_canvas.configure(scrollregion=recent_canvas.bbox("all"))
+            # Set the frame width to match the canvas width minus padding
+            canvas_width = event.width
+            recent_canvas.itemconfig(frame_id, width=canvas_width)
+            
+        self.recent_matches_frame.bind("<Configure>", configure_recent_frame)
+        
+        # Create the window with the frame - store the window ID for later use
+        frame_id = recent_canvas.create_window((0, 0), window=self.recent_matches_frame, anchor="nw", width=recent_canvas.winfo_width())
+        
+        # Configure the canvas to expand and fill
         recent_canvas.configure(yscrollcommand=recent_scrollbar.set)
-        
         recent_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
         recent_scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=10)
+        
+        # Configure canvas to update width when resized
+        def on_recent_canvas_configure(event):
+            canvas_width = event.width
+            recent_canvas.itemconfig(frame_id, width=canvas_width)
+            
+        recent_canvas.bind('<Configure>', on_recent_canvas_configure)
         
         # Manual entry section
         manual_frame = tk.Frame(self.selection_frame, bg=self.colors["bg_light"], pady=15)
