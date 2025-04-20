@@ -96,6 +96,7 @@ class CricketDashboard:
             headers = {
                 # "x-rapidapi-key": "4ade6f2361msh57ccf4cb0584770p18e418jsnc58ddc583a78", #not working key(284 id)
                 "x-rapidapi-key": "17c4bae87fmsh204730bfc3da945p101869jsn2a8ef0d22e5d", #working key
+                # "x-rapidapi-key": "99cf81f013msh29100b8d02b6b9dp161532jsnd6a92c813a77", #working key (secondary)
                 "x-rapidapi-host": "cricbuzz-cricket.p.rapidapi.com"
             }
             url_recent = "https://cricbuzz-cricket.p.rapidapi.com/matches/v1/recent"
@@ -397,7 +398,6 @@ class CricketDashboard:
                             match_data["team2_score"] = "No score"
                         
                         # Categorize matches as live or recent
-                        # if status in ["In Progress", "Live", "Innings Break", "Tea", "Lunch", "Drinks", "Stumps", "Rain"]:
                         recent_matches.append(match_data)        
                                   
         # Sort matches - live by state, recent by recency
@@ -442,10 +442,10 @@ class CricketDashboard:
             bg="white",
             relief=tk.RIDGE,
             bd=1,
-            padx=10,
-            pady=10
+            pady=10,
+            padx=10  # Added horizontal padding
         )
-        card_frame.pack(fill=tk.X, padx=10, pady=5)
+        card_frame.pack(fill=tk.X, pady=5)
         
         # Top row with series name and format
         top_row = tk.Frame(card_frame, bg="white")
@@ -469,53 +469,55 @@ class CricketDashboard:
         )
         format_label.pack(side=tk.RIGHT)
         
-        # Team names and scores
+        # Team names and scores - using grid for better control
         teams_frame = tk.Frame(card_frame, bg="white", pady=5)
         teams_frame.pack(fill=tk.X)
+        teams_frame.columnconfigure(0, weight=3)  # Team name column - takes more space
+        teams_frame.columnconfigure(1, weight=2)  # Score column - fixed width
         
         # Team 1
-        team1_frame = tk.Frame(teams_frame, bg="white")
-        team1_frame.pack(fill=tk.X)
-        
         team1_name = tk.Label(
-            team1_frame,
+            teams_frame,
             text=match_data["team1"],
             font=("Arial", 11, "bold"),
             bg="white",
-            anchor="w"
+            anchor="w",
+            justify=tk.LEFT
         )
-        team1_name.pack(side=tk.LEFT)
+        team1_name.grid(row=0, column=0, sticky="w", pady=2)
         
         team1_score = tk.Label(
-            team1_frame,
+            teams_frame,
             text=match_data.get("team1_score", ""),
             font=("Arial", 11),
             bg="white",
-            anchor="e"
+            anchor="e",
+            width=30,  # Fixed width to prevent truncation
+            justify=tk.RIGHT
         )
-        team1_score.pack(side=tk.RIGHT)
+        team1_score.grid(row=0, column=1, sticky="e", pady=2)
         
         # Team 2
-        team2_frame = tk.Frame(teams_frame, bg="white")
-        team2_frame.pack(fill=tk.X)
-        
         team2_name = tk.Label(
-            team2_frame,
+            teams_frame,
             text=match_data["team2"],
             font=("Arial", 11, "bold"),
             bg="white",
-            anchor="w"
+            anchor="w",
+            justify=tk.LEFT
         )
-        team2_name.pack(side=tk.LEFT)
+        team2_name.grid(row=1, column=0, sticky="w", pady=2)
         
         team2_score = tk.Label(
-            team2_frame,
+            teams_frame,
             text=match_data.get("team2_score", ""),
             font=("Arial", 11),
             bg="white",
-            anchor="e"
+            anchor="e",
+            width=30,  # Fixed width to prevent truncation
+            justify=tk.RIGHT
         )
-        team2_score.pack(side=tk.RIGHT)
+        team2_score.grid(row=1, column=1, sticky="e", pady=2)
         
         # Match status
         status_frame = tk.Frame(card_frame, bg="white", pady=5)
@@ -1108,6 +1110,7 @@ class CricketDashboard:
             headers = {
                 # "x-rapidapi-key": "4ade6f2361msh57ccf4cb0584770p18e418jsnc58ddc583a78", #not working key(284 id)
                 "x-rapidapi-key": "17c4bae87fmsh204730bfc3da945p101869jsn2a8ef0d22e5d", #working key
+                # "x-rapidapi-key": "99cf81f013msh29100b8d02b6b9dp161532jsnd6a92c813a77", #working key (secondary)
                 "x-rapidapi-host": "cricbuzz-cricket.p.rapidapi.com"
             }
             response = requests.get(url, headers=headers, timeout=10)  # Add timeout
