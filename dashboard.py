@@ -14,7 +14,7 @@ class CricketDashboard:
     def __init__(self, root):
         self.root = root
         self.root.title("Cricket Match Dashboard")
-        self.root.geometry("1200x800")
+        self.root.geometry("1600x900")
         self.root.configure(bg="#f0f0f0")
         
         # Initialize data
@@ -23,6 +23,8 @@ class CricketDashboard:
         self.teams = []
         self.selected_team = tk.StringVar()
         self.selected_view = tk.StringVar(value="Overview")
+        self.match_selection_done_var = tk.BooleanVar(value=False)
+        self.selected_match_id = "117962"  # Default match ID
         
         # Threading control
         self.is_fetching = False
@@ -31,9 +33,46 @@ class CricketDashboard:
         self.failed_attempts = 0
         self.max_retry_attempts = 3
         
-        # Get match ID from user
+        # Define colors for theme
+        self.colors = {
+            "primary": "#113955",
+            "secondary": "#8c1c13",
+            "accent": "#16363b",
+            "bg_light": "#f0f0f0",
+            "text": "#333333",
+            "text_light": "#ffffff",
+            "text_secondary": "#666666",
+            "success": "#2ecc71",
+            "warning": "#f39c12",
+            "error": "#e74c3c"
+        }
+        
+        # Show match selection screen to get match ID
         self.match_id = self.get_match_id()
         
+        # Create main dashboard after match is selected
+        self.setup_main_dashboard()
+        
+        # Set up protocol for window close
+        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
+    
+    def get_match_id(self):
+        """Show match selection screen and return selected match ID"""
+        # Show the match selection screen
+        self.show_match_selection_screen()
+        
+        # Create a special mainloop just for the selection screen
+        self.root.wait_variable(self.match_selection_done_var)
+        
+        # Return the selected match ID
+        return self.selected_match_id
+    
+    def setup_main_dashboard(self):
+        """Setup the main dashboard after match selection"""
+        # Clear any existing widgets from the selection screen
+        for widget in self.root.winfo_children():
+            widget.destroy()
+            
         # Create main frames
         self.create_header_frame()
         self.create_sidebar()
@@ -44,16 +83,701 @@ class CricketDashboard:
         
         # Start auto-refresh
         self.start_auto_refresh()
-        
-        # Set up protocol for window close
-        self.root.protocol("WM_DELETE_WINDOW", self.on_close)
     
-    def get_match_id(self):
-        """Get match ID from user"""
-        match_id = simpledialog.askstring("Match ID", "Enter cricket match ID:", initialvalue="112469")
-        if not match_id:
-            match_id = "115102"  # Default match ID if user cancels
-        return match_id
+    def load_matches_data(self):
+        """Load match data from the API or sample JSON file"""
+        try:
+            # Start loading animation
+            if hasattr(self, 'status_label'):
+                self.status_label.config(text="Loading match data...")
+            
+            # Make API call to fetch live matches
+            url = "https://cricbuzz-cricket.p.rapidapi.com/matches/v1/live"
+            headers = {
+                # "x-rapidapi-key": "4ade6f2361msh57ccf4cb0584770p18e418jsnc58ddc583a78", #not working key(284 id)
+                "x-rapidapi-key": "17c4bae87fmsh204730bfc3da945p101869jsn2a8ef0d22e5d", #working key
+                # "x-rapidapi-key": "99cf81f013msh29100b8d02b6b9dp161532jsnd6a92c813a77", #working key (secondary)
+                "x-rapidapi-host": "cricbuzz-cricket.p.rapidapi.com"
+            }
+            url_recent = "https://cricbuzz-cricket.p.rapidapi.com/matches/v1/recent"
+            headers_recent = {
+                "x-rapidapi-key": "17c4bae87fmsh204730bfc3da945p101869jsn2a8ef0d22e5d",
+                "x-rapidapi-host": "cricbuzz-cricket.p.rapidapi.com"
+            }
+            try:
+                response = requests.get(url, headers=headers, timeout=15)
+                response_recent = requests.get(url_recent, headers=headers_recent, timeout=15)
+                if response.status_code == 200:
+                    matches_data = response.json()
+                    matches_data_recent = response_recent.json()
+                    self.populate_match_selection(matches_data, matches_data_recent)
+                                        
+                    if hasattr(self, 'status_label'):
+                        self.status_label.config(text=f"Live matches loaded - {datetime.now().strftime('%H:%M:%S')}")
+                elif response.status_code == 429:
+                    # Handle rate limit specifically
+                    self._use_sample_data()
+                    
+                    if hasattr(self, 'status_label'):
+                        self.status_label.config(text=f"API rate limit reached (429). Using sample data instead.")
+                    
+                    # Show a more informative message
+                    if hasattr(self, 'root') and self.root.winfo_exists():
+                        messagebox.showinfo(
+                            "API Rate Limit", 
+                            "You've reached the RapidAPI rate limit for the Cricbuzz API.\n\n"
+                            "The application will use sample data for demonstration purposes.\n\n"
+                            "Rate limits typically reset after 24 hours."
+                        )
+                else:
+                    # Fall back to sample data if API fails
+                    self._use_sample_data()
+                    
+                    if hasattr(self, 'status_label'):
+                        self.status_label.config(text=f"API error ({response.status_code}). Using sample data.")
+            except requests.RequestException as e:
+                # Handle network errors
+                self._use_sample_data()
+                
+                if hasattr(self, 'status_label'):
+                    self.status_label.config(text=f"Network error: {str(e)}. Using sample data.")
+                
+        except Exception as e:
+            # Fall back to sample data on any error
+            self._use_sample_data()
+            
+            if hasattr(self, 'status_label'):
+                self.status_label.config(text=f"Error: {str(e)}. Using sample data.")
+            print(f"Error loading matches: {str(e)}")
+    
+    def _use_sample_data(self):
+        """Use sample data as a fallback"""
+        # Sample data structure matching the API format
+        sample_data = {
+            "typeMatches": [
+                {
+                    "matchType": "International",
+                    "seriesMatches": [
+                        {
+                            "seriesAdWrapper": {
+                                "seriesName": "ICC Men's T20 World Cup 2024",
+                                "matches": [
+                                    {
+                                        "matchInfo": {
+                                            "matchId": "112469",
+                                            "matchDesc": "13th Match, Group C",
+                                            "matchFormat": "T20",
+                                            "status": "India won by 8 wickets",
+                                            "state": "Complete",
+                                            "team1": {"teamName": "India"},
+                                            "team2": {"teamName": "Ireland"},
+                                            "venueInfo": {"ground": "Nassau County International Stadium", "city": "New York"}
+                                        },
+                                        "matchScore": {
+                                            "team1Score": {
+                                                "inngs1": {"runs": 147, "wickets": 6, "overs": 20.0}
+                                            },
+                                            "team2Score": {
+                                                "inngs1": {"runs": 150, "wickets": 2, "overs": 15.2}
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "matchInfo": {
+                                            "matchId": "112462", 
+                                            "matchDesc": "10th Match, Group D",
+                                            "matchFormat": "T20",
+                                            "status": "New Zealand won by 4 wickets",
+                                            "state": "Complete",
+                                            "team1": {"teamName": "Afghanistan"},
+                                            "team2": {"teamName": "New Zealand"},
+                                            "venueInfo": {"ground": "Providence Stadium", "city": "Guyana"}
+                                        },
+                                        "matchScore": {
+                                            "team1Score": {
+                                                "inngs1": {"runs": 129, "wickets": 6, "overs": 20.0}
+                                            },
+                                            "team2Score": {
+                                                "inngs1": {"runs": 130, "wickets": 6, "overs": 18.1}
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "matchInfo": {
+                                            "matchId": "112455", 
+                                            "matchDesc": "9th Match, Group B",
+                                            "matchFormat": "T20",
+                                            "status": "Australia won by 36 runs",
+                                            "state": "Complete",
+                                            "team1": {"teamName": "Australia"},
+                                            "team2": {"teamName": "England"},
+                                            "venueInfo": {"ground": "Kensington Oval", "city": "Barbados"}
+                                        },
+                                        "matchScore": {
+                                            "team1Score": {
+                                                "inngs1": {"runs": 201, "wickets": 7, "overs": 20.0}
+                                            },
+                                            "team2Score": {
+                                                "inngs1": {"runs": 165, "wickets": 10, "overs": 18.2}
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                },
+                {
+                    "matchType": "League",
+                    "seriesMatches": [
+                        {
+                            "seriesAdWrapper": {
+                                "seriesName": "IPL 2024",
+                                "matches": [
+                                    {
+                                        "matchInfo": {
+                                            "matchId": "112420",
+                                            "matchDesc": "Final",
+                                            "matchFormat": "T20",
+                                            "status": "Kolkata Knight Riders won by 8 wickets",
+                                            "state": "Complete",
+                                            "team1": {"teamName": "Sunrisers Hyderabad"},
+                                            "team2": {"teamName": "Kolkata Knight Riders"},
+                                            "venueInfo": {"ground": "MA Chidambaram Stadium", "city": "Chennai"}
+                                        },
+                                        "matchScore": {
+                                            "team1Score": {
+                                                "inngs1": {"runs": 113, "wickets": 10, "overs": 18.3}
+                                            },
+                                            "team2Score": {
+                                                "inngs1": {"runs": 114, "wickets": 2, "overs": 10.3}
+                                            }
+                                        }
+                                    },
+                                    {
+                                        "matchInfo": {
+                                            "matchId": "112402",
+                                            "matchDesc": "Qualifier 2",
+                                            "matchFormat": "T20",
+                                            "status": "Sunrisers Hyderabad won by 35 runs",
+                                            "state": "Complete",
+                                            "team1": {"teamName": "Rajasthan Royals"},
+                                            "team2": {"teamName": "Sunrisers Hyderabad"},
+                                            "venueInfo": {"ground": "MA Chidambaram Stadium", "city": "Chennai"}
+                                        },
+                                        "matchScore": {
+                                            "team1Score": {
+                                                "inngs1": {"runs": 139, "wickets": 10, "overs": 19.1}
+                                            },
+                                            "team2Score": {
+                                                "inngs1": {"runs": 175, "wickets": 9, "overs": 20.0}
+                                            }
+                                        }
+                                    }
+                                ]
+                            }
+                        }
+                    ]
+                }
+            ]
+        }
+        
+        # Populate the match selection with the sample data
+        self.populate_match_selection(sample_data)
+    
+    def populate_match_selection(self, matches_data, matches_data_recent):
+        """Populate the match selection screen with data from the API"""
+        
+        for widget in self.live_matches_frame.winfo_children():
+            widget.destroy()
+        for widget in self.recent_matches_frame.winfo_children():
+            widget.destroy()
+            
+        # Process match data for each category
+        live_matches = []
+        recent_matches = []
+        
+        # Extract matches from different types
+        for match_type in matches_data.get("typeMatches", []):
+            type_name = match_type.get("matchType", "")
+            
+            for series_match in match_type.get("seriesMatches", []):
+                if "seriesAdWrapper" in series_match:
+                    series_data = series_match["seriesAdWrapper"]
+                    series_name = series_data.get("seriesName", "")
+                    
+                    for match in series_data.get("matches", []):
+                        match_info = match.get("matchInfo", {})
+                        status = match_info.get("state", "")
+                        
+                        match_data = {
+                            "id": match_info.get("matchId", ""),
+                            "series": series_name,
+                            "description": match_info.get("matchDesc", ""),
+                            "format": match_info.get("matchFormat", ""),
+                            "status": match_info.get("status", ""),
+                            "state": status,
+                            "team1": match_info.get("team1", {}).get("teamName", ""),
+                            "team2": match_info.get("team2", {}).get("teamName", ""),
+                            "venue": match_info.get("venueInfo", {}).get("ground", ""),
+                            "city": match_info.get("venueInfo", {}).get("city", ""),
+                            "type": type_name
+                        }
+                        
+                        # Get score data if available
+                        if "matchScore" in match:
+                            score_data = match["matchScore"]
+                            
+                            team1_score = score_data.get("team1Score", {})
+                            if team1_score and "inngs1" in team1_score:
+                                innings1 = team1_score["inngs1"]
+                                match_data["team1_score"] = f"{innings1.get('runs', 0)}/{innings1.get('wickets', 0)} ({innings1.get('overs', 0)} ov)"
+                            else:
+                                match_data["team1_score"] = "Yet to bat"
+                                
+                            team2_score = score_data.get("team2Score", {})
+                            if team2_score and "inngs1" in team2_score:
+                                innings2 = team2_score["inngs1"]
+                                match_data["team2_score"] = f"{innings2.get('runs', 0)}/{innings2.get('wickets', 0)} ({innings2.get('overs', 0)} ov)"
+                            else:
+                                match_data["team2_score"] = "Yet to bat"
+                        else:
+                            match_data["team1_score"] = "No score"
+                            match_data["team2_score"] = "No score"
+                        
+                        # Categorize matches as live or recent
+                        if status in ["In Progress", "Live", "Innings Break", "Tea", "Lunch", "Drinks", "Stumps", "Rain"]:
+                            live_matches.append(match_data)
+        
+        # Process recent matches
+        for match_type in matches_data_recent.get("typeMatches", []):
+            type_name = match_type.get("matchType", "")
+            
+            for series_match in match_type.get("seriesMatches", []):
+                if "seriesAdWrapper" in series_match:
+                    series_data = series_match["seriesAdWrapper"]
+                    series_name = series_data.get("seriesName", "")
+                    
+                    for match in series_data.get("matches", []):
+                        match_info = match.get("matchInfo", {})
+                        status = match_info.get("state", "")
+                        
+                        match_data = {
+                            "id": match_info.get("matchId", ""),
+                            "series": series_name,
+                            "description": match_info.get("matchDesc", ""),
+                            "format": match_info.get("matchFormat", ""),
+                            "status": match_info.get("status", ""),
+                            "state": status,
+                            "team1": match_info.get("team1", {}).get("teamName", ""),
+                            "team2": match_info.get("team2", {}).get("teamName", ""),
+                            "venue": match_info.get("venueInfo", {}).get("ground", ""),
+                            "city": match_info.get("venueInfo", {}).get("city", ""),
+                            "type": type_name
+                        }
+                        
+                        # Get score data if available
+                        if "matchScore" in match:
+                            score_data = match["matchScore"]
+                            
+                            team1_score = score_data.get("team1Score", {})
+                            if team1_score and "inngs1" in team1_score:
+                                innings1 = team1_score["inngs1"]
+                                match_data["team1_score"] = f"{innings1.get('runs', 0)}/{innings1.get('wickets', 0)} ({innings1.get('overs', 0)} ov)"
+                            else:
+                                match_data["team1_score"] = "Yet to bat"
+                                
+                            team2_score = score_data.get("team2Score", {})
+                            if team2_score and "inngs1" in team2_score:
+                                innings2 = team2_score["inngs1"]
+                                match_data["team2_score"] = f"{innings2.get('runs', 0)}/{innings2.get('wickets', 0)} ({innings2.get('overs', 0)} ov)"
+                            else:
+                                match_data["team2_score"] = "Yet to bat"
+                        else:
+                            match_data["team1_score"] = "No score"
+                            match_data["team2_score"] = "No score"
+                        
+                        # Categorize matches as live or recent
+                        recent_matches.append(match_data)        
+                                  
+        # Sort matches - live by state, recent by recency
+        live_matches.sort(key=lambda x: 0 if x["state"] == "In Progress" else 1)
+        
+        # Create match cards for live matches
+        if live_matches:
+            for match in live_matches:
+                self.create_match_card(self.live_matches_frame, match)
+        else:
+            no_matches_label = tk.Label(
+                self.live_matches_frame,
+                text="No live matches available",
+                font=("Arial", 12),
+                bg=self.colors["bg_light"],
+                fg=self.colors["text"],
+                pady=20
+            )
+            no_matches_label.pack()
+        
+        # Create match cards for recent matches
+        if recent_matches:
+            # Show max 10 recent matches
+            for match in recent_matches[:10]:
+                self.create_match_card(self.recent_matches_frame, match)
+        else:
+            no_matches_label = tk.Label(
+                self.recent_matches_frame,
+                text="No recent matches available",
+                font=("Arial", 12),
+                bg=self.colors["bg_light"],
+                fg=self.colors["text"],
+                pady=20
+            )
+            no_matches_label.pack()
+    
+    def create_match_card(self, parent_frame, match_data):
+        """Create a card for a match in the selection screen"""
+        # Create card frame
+        card_frame = tk.Frame(
+            parent_frame, 
+            bg="white",
+            relief=tk.RIDGE,
+            bd=1,
+            pady=10,
+            padx=10  # Added horizontal padding
+        )
+        card_frame.pack(fill=tk.X, pady=5)
+        
+        # Top row with series name and format
+        top_row = tk.Frame(card_frame, bg="white")
+        top_row.pack(fill=tk.X)
+        
+        series_label = tk.Label(
+            top_row,
+            text=match_data["series"],
+            font=("Arial", 9),
+            bg="white",
+            fg="#666666"
+        )
+        series_label.pack(side=tk.LEFT)
+        
+        format_label = tk.Label(
+            top_row,
+            text=match_data["format"],
+            font=("Arial", 9, "bold"),
+            bg="white",
+            fg=self.colors["accent"]
+        )
+        format_label.pack(side=tk.RIGHT)
+        
+        # Team names and scores - using grid for better control
+        teams_frame = tk.Frame(card_frame, bg="white", pady=5)
+        teams_frame.pack(fill=tk.X)
+        teams_frame.columnconfigure(0, weight=3)  # Team name column - takes more space
+        teams_frame.columnconfigure(1, weight=2)  # Score column - fixed width
+        
+        # Team 1
+        team1_name = tk.Label(
+            teams_frame,
+            text=match_data["team1"],
+            font=("Arial", 11, "bold"),
+            bg="white",
+            anchor="w",
+            justify=tk.LEFT
+        )
+        team1_name.grid(row=0, column=0, sticky="w", pady=2)
+        
+        team1_score = tk.Label(
+            teams_frame,
+            text=match_data.get("team1_score", ""),
+            font=("Arial", 11),
+            bg="white",
+            anchor="e",
+            width=30,  # Fixed width to prevent truncation
+            justify=tk.RIGHT
+        )
+        team1_score.grid(row=0, column=1, sticky="e", pady=2)
+        
+        # Team 2
+        team2_name = tk.Label(
+            teams_frame,
+            text=match_data["team2"],
+            font=("Arial", 11, "bold"),
+            bg="white",
+            anchor="w",
+            justify=tk.LEFT
+        )
+        team2_name.grid(row=1, column=0, sticky="w", pady=2)
+        
+        team2_score = tk.Label(
+            teams_frame,
+            text=match_data.get("team2_score", ""),
+            font=("Arial", 11),
+            bg="white",
+            anchor="e",
+            width=30,  # Fixed width to prevent truncation
+            justify=tk.RIGHT
+        )
+        team2_score.grid(row=1, column=1, sticky="e", pady=2)
+        
+        # Match status
+        status_frame = tk.Frame(card_frame, bg="white", pady=5)
+        status_frame.pack(fill=tk.X)
+        
+        status_label = tk.Label(
+            status_frame,
+            text=match_data["status"],
+            font=("Arial", 10),
+            bg="white",
+            fg="#2c3e50" if match_data["state"] != "In Progress" else "#e74c3c"
+        )
+        status_label.pack(side=tk.LEFT)
+        
+        # Venue info
+        if match_data.get("venue"):
+            venue_text = f"{match_data['venue']}, {match_data['city']}" if match_data.get("city") else match_data["venue"]
+            venue_label = tk.Label(
+                status_frame,
+                text=venue_text,
+                font=("Arial", 9),
+                bg="white",
+                fg="#666666"
+            )
+            venue_label.pack(side=tk.RIGHT)
+        
+        # Button to select match
+        select_button = tk.Button(
+            card_frame,
+            text="Select Match",
+            bg=self.colors["accent"],
+            fg="white",
+            font=("Arial", 10),
+            padx=10,
+            pady=5,
+            command=lambda id=match_data["id"]: self.load_match_from_selection(id)
+        )
+        select_button.pack(pady=(5, 0))
+    
+    def load_match_from_selection(self, match_id):
+        """Load the selected match and close the selection screen"""
+        self.selected_match_id = match_id
+        self.match_selection_done_var.set(True)  # Signal that selection is done
+    
+    def load_match_from_entry(self):
+        """Load match from manual entry (deprecated but kept for compatibility)"""
+        if hasattr(self, 'manual_entry'):
+            match_id = self.manual_entry.get().strip()
+            if match_id:
+                self.match_selection_done_var.set(True)
+                self.selected_match_id = match_id
+        else:
+            self.load_quick_match()
+            
+    def load_quick_match(self):
+        """Load match from quick access entry"""
+        if hasattr(self, 'quick_id_entry'):
+            match_id = self.quick_id_entry.get().strip()
+            if match_id:
+                # Set the selected match ID
+                self.selected_match_id = match_id
+                # Set selection done flag to true to exit waiting loop
+                self.match_selection_done_var.set(True)
+    
+    def show_match_selection_screen(self):
+        """Show the match selection screen"""
+        # Clear any existing widgets
+        for widget in self.root.winfo_children():
+            widget.destroy()
+            
+        # Create main frame for match selection
+        self.selection_frame = tk.Frame(self.root, bg=self.colors["bg_light"])
+        self.selection_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Header
+        header_frame = tk.Frame(self.selection_frame, bg=self.colors["primary"], pady=15)
+        header_frame.pack(fill=tk.X)
+        
+        header_label = tk.Label(
+            header_frame, 
+            text="Cricket Dashboard - Match Selection",
+            font=("Arial", 18, "bold"),
+            bg=self.colors["primary"],
+            fg=self.colors["text_light"]
+        )
+        header_label.pack()
+        
+        # Add direct match ID entry at the top - more prominent position
+        direct_access_frame = tk.Frame(self.selection_frame, bg=self.colors["bg_light"], padx=20, pady=15)
+        direct_access_frame.pack(fill=tk.X)
+        
+        # Add a labelframe to make it stand out
+        quick_access_box = ttk.LabelFrame(direct_access_frame, text="Quick Match Access")
+        quick_access_box.pack(fill=tk.X, pady=5)
+        
+        quick_access_content = tk.Frame(quick_access_box, bg=self.colors["bg_light"], padx=10, pady=10)
+        quick_access_content.pack(fill=tk.X)
+        
+        tk.Label(
+            quick_access_content,
+            text="Enter Match ID:",
+            font=("Arial", 12, "bold"),
+            bg=self.colors["bg_light"]
+        ).pack(side=tk.LEFT, padx=(0, 10))
+        
+        self.quick_id_entry = tk.Entry(quick_access_content, width=15, font=("Arial", 12))
+        self.quick_id_entry.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Add a suggestion label
+        suggestion_label = tk.Label(
+            quick_access_content,
+            text="Try IDs: 112469, 112462, 112455, 112420, 112402",
+            font=("Arial", 10, "italic"),
+            fg=self.colors["text_secondary"],
+            bg=self.colors["bg_light"]
+        )
+        suggestion_label.pack(side=tk.LEFT, padx=(0, 20))
+        
+        load_button = tk.Button(
+            quick_access_content,
+            text="Load Match",
+            bg=self.colors["accent"],
+            fg=self.colors["text_light"],
+            font=("Arial", 12, "bold"),
+            padx=15,
+            pady=5,
+            command=self.load_quick_match
+        )
+        load_button.pack(side=tk.RIGHT)
+        
+        # Main content frame with two columns
+        content_frame = tk.Frame(self.selection_frame, bg=self.colors["bg_light"], padx=20, pady=10)
+        content_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Left column - Live Matches
+        live_frame = tk.Frame(content_frame, bg=self.colors["bg_light"], relief=tk.RIDGE, bd=1)
+        live_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 10), pady=10)
+        
+        # Title for Live Matches
+        live_title_frame = tk.Frame(live_frame, bg=self.colors["accent"], padx=10, pady=5)
+        live_title_frame.pack(fill=tk.X)
+        
+        tk.Label(
+            live_title_frame,
+            text="Live Matches",
+            font=("Arial", 14, "bold"),
+            bg=self.colors["accent"],
+            fg=self.colors["text_light"]
+        ).pack(anchor="w")
+        
+        # Create scrollable area for live matches
+        live_canvas = tk.Canvas(live_frame, bg=self.colors["bg_light"])
+        live_scrollbar = ttk.Scrollbar(live_frame, orient="vertical", command=live_canvas.yview)
+        
+        self.live_matches_frame = tk.Frame(live_canvas, bg=self.colors["bg_light"])
+        
+        # Make sure the live matches frame has a fixed width equal to the canvas
+        def configure_live_frame(event):
+            # Update scrollregion to include all items
+            live_canvas.configure(scrollregion=live_canvas.bbox("all"))
+            # Set the frame width to match the canvas width minus padding
+            canvas_width = event.width
+            live_canvas.itemconfig(live_frame_id, width=canvas_width)
+            
+        self.live_matches_frame.bind("<Configure>", configure_live_frame)
+        
+        # Create the window with the frame - store the window ID for later use
+        live_frame_id = live_canvas.create_window((0, 0), window=self.live_matches_frame, anchor="nw", width=live_canvas.winfo_width())
+        
+        # Configure the canvas to expand and fill
+        live_canvas.configure(yscrollcommand=live_scrollbar.set)
+        live_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+        live_scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=10)
+        
+        # Configure canvas to update width when resized
+        def on_live_canvas_configure(event):
+            canvas_width = event.width
+            live_canvas.itemconfig(live_frame_id, width=canvas_width)
+            
+        live_canvas.bind('<Configure>', on_live_canvas_configure)
+        
+        # Right column - Recent Matches
+        recent_frame = tk.Frame(content_frame, bg=self.colors["bg_light"], relief=tk.RIDGE, bd=1)
+        recent_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(10, 0), pady=10)
+        
+        # Title for Recent Matches
+        recent_title_frame = tk.Frame(recent_frame, bg=self.colors["accent"], padx=10, pady=5)
+        recent_title_frame.pack(fill=tk.X)
+        
+        tk.Label(
+            recent_title_frame,
+            text="Recent Matches",
+            font=("Arial", 14, "bold"),
+            bg=self.colors["accent"],
+            fg=self.colors["text_light"]
+        ).pack(anchor="w")
+        
+        # Create scrollable area for recent matches
+        recent_canvas = tk.Canvas(recent_frame, bg=self.colors["bg_light"])
+        recent_scrollbar = ttk.Scrollbar(recent_frame, orient="vertical", command=recent_canvas.yview)
+        
+        self.recent_matches_frame = tk.Frame(recent_canvas, bg=self.colors["bg_light"])
+        
+        # Make sure the recent matches frame has a fixed width equal to the canvas
+        def configure_recent_frame(event):
+            # Update scrollregion to include all items
+            recent_canvas.configure(scrollregion=recent_canvas.bbox("all"))
+            # Set the frame width to match the canvas width minus padding
+            canvas_width = event.width
+            recent_canvas.itemconfig(frame_id, width=canvas_width)
+            
+        self.recent_matches_frame.bind("<Configure>", configure_recent_frame)
+        
+        # Create the window with the frame - store the window ID for later use
+        frame_id = recent_canvas.create_window((0, 0), window=self.recent_matches_frame, anchor="nw", width=recent_canvas.winfo_width())
+        
+        # Configure the canvas to expand and fill
+        recent_canvas.configure(yscrollcommand=recent_scrollbar.set)
+        recent_canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=10, pady=10)
+        recent_scrollbar.pack(side=tk.RIGHT, fill=tk.Y, pady=10)
+        
+        # Configure canvas to update width when resized
+        def on_recent_canvas_configure(event):
+            canvas_width = event.width
+            recent_canvas.itemconfig(frame_id, width=canvas_width)
+            
+        recent_canvas.bind('<Configure>', on_recent_canvas_configure)
+        
+        # Manual entry section
+        manual_frame = tk.Frame(self.selection_frame, bg=self.colors["bg_light"], pady=15)
+        manual_frame.pack(fill=tk.X, side=tk.BOTTOM, padx=20)
+        
+        # Add refresh button
+        refresh_button = tk.Button(
+            manual_frame,
+            text="Refresh Matches",
+            bg=self.colors["primary"],
+            fg=self.colors["text_light"],
+            font=("Arial", 11),
+            padx=10,
+            command=lambda: self.update_match_list(True)
+        )
+        refresh_button.pack(side=tk.RIGHT)
+        
+        # Status label
+        self.status_label = tk.Label(
+            self.selection_frame,
+            text="Loading match data...",
+            font=("Arial", 10),
+            bg=self.colors["bg_light"],
+            fg=self.colors["text"],
+            pady=5
+        )
+        self.status_label.pack(side=tk.BOTTOM, fill=tk.X, padx=20)
+        
+        # Load match data
+        self.load_matches_data()
+        
+        # Schedule periodic refresh (every 5 minutes)
+        self.match_list_refresh_job = self.root.after(300000, self.schedule_match_list_refresh)
     
     def on_close(self):
         """Handle window close event"""
@@ -61,12 +785,67 @@ class CricketDashboard:
         if hasattr(self, 'loading_animation_id') and self.loading_animation_id:
             self.root.after_cancel(self.loading_animation_id)
             
+        # Cancel match list refresh timer if it exists
+        if hasattr(self, 'match_list_refresh_job') and self.match_list_refresh_job:
+            self.root.after_cancel(self.match_list_refresh_job)
+            self.match_list_refresh_job = None
+            
         # Close the window
         self.root.destroy()
     
+    def update_match_list(self, show_loading=True):
+        """Fetch and update the available matches"""
+        # Show loading indicator if requested
+        if show_loading and hasattr(self, 'status_label'):
+            self.status_label.config(text="Refreshing live matches...")
+            self.root.update()
+            
+        # Clear previous content
+        if hasattr(self, 'live_matches_frame'):
+            for widget in self.live_matches_frame.winfo_children():
+                widget.destroy()
+        
+        if hasattr(self, 'recent_matches_frame'):
+            for widget in self.recent_matches_frame.winfo_children():
+                widget.destroy()
+        
+        # Reload match data - this will fetch from API or use fallback
+        self.load_matches_data()
+        
+        # Visual feedback after refresh
+        if show_loading and hasattr(self, 'status_label'):
+            self.status_label.config(text=f"Matches refreshed at {datetime.now().strftime('%H:%M:%S')}")
+            
+            # Create blinking effect for user feedback
+            def blink_status(count=0):
+                if count < 4:  # Blink 2 times
+                    if count % 2 == 0:
+                        self.status_label.config(fg=self.colors["accent"])
+                    else:
+                        self.status_label.config(fg=self.colors["text"])
+                    self.root.after(250, lambda: blink_status(count + 1))
+                else:
+                    self.status_label.config(fg=self.colors["text"])
+            
+            # Start blinking effect
+            blink_status()
+    
+    def schedule_match_list_refresh(self):
+        """Schedule periodic refresh of the match list"""
+        # Only refresh if selection screen is visible
+        if hasattr(self, 'selection_frame') and self.selection_frame.winfo_ismapped():
+            self.update_match_list(show_loading=False)
+            
+            # Update status
+            if hasattr(self, 'status_label'):
+                self.status_label.config(text=f"Match list auto-refreshed at {datetime.now().strftime('%H:%M:%S')}")
+            
+            # Schedule the next refresh after 5 minutes (300000 ms)
+            self.match_list_refresh_job = self.root.after(300000, self.schedule_match_list_refresh)
+    
     def create_header_frame(self):
         """Create the header frame with title and refresh button"""
-        header_frame = tk.Frame(self.root, bg="#3498db", height=60)
+        header_frame = tk.Frame(self.root, bg="#113955", height=60)
         header_frame.pack(fill=tk.X, side=tk.TOP)
         
         # Title
@@ -74,17 +853,17 @@ class CricketDashboard:
             header_frame, 
             text="Cricket Match Analytics Dashboard", 
             font=("Arial", 16, "bold"),
-            bg="#3498db",
+            bg="#113955",
             fg="white"
         )
         title_label.pack(side=tk.LEFT, padx=20, pady=10)
         
         # Right side frame for controls
-        controls_frame = tk.Frame(header_frame, bg="#3498db")
+        controls_frame = tk.Frame(header_frame, bg="#113955")
         controls_frame.pack(side=tk.RIGHT, padx=10)
         
         # Loading indicator
-        self.loading_indicator = tk.Canvas(controls_frame, width=20, height=20, bg="#3498db", highlightthickness=0)
+        self.loading_indicator = tk.Canvas(controls_frame, width=20, height=20, bg="#113955", highlightthickness=0)
         self.loading_indicator.pack(side=tk.RIGHT, padx=5)
         self.loading_indicator.create_oval(2, 2, 18, 18, outline="#ffffff", width=2, fill="#3498db", tags="loading")
         
@@ -101,7 +880,7 @@ class CricketDashboard:
         status_label = tk.Label(
             controls_frame,
             textvariable=self.status_var,
-            bg="#3498db",
+            bg="#113955",
             fg="white"
         )
         status_label.pack(side=tk.RIGHT, padx=5)
@@ -111,7 +890,7 @@ class CricketDashboard:
         last_updated_label = tk.Label(
             controls_frame,
             textvariable=self.last_updated_var,
-            bg="#3498db",
+            bg="#113955",
             fg="white"
         )
         last_updated_label.pack(side=tk.RIGHT, padx=5)
@@ -276,47 +1055,32 @@ class CricketDashboard:
     
     def create_main_content(self):
         """Create the main content area"""
+        # Main content
         self.main_frame = tk.Frame(self.root, bg="#f0f0f0")
-        self.main_frame.pack(fill=tk.BOTH, side=tk.RIGHT, expand=True)
+        self.main_frame.pack(fill=tk.BOTH, expand=True, side=tk.RIGHT)
         
-        # Top info panel
-        self.info_panel = ttk.LabelFrame(self.main_frame, text="Match Information", padding=10)
-        self.info_panel.pack(fill=tk.X, padx=20, pady=10)
+        # Match info panel
+        info_frame = tk.Frame(self.main_frame, bg="#f0f0f0", pady=10)
+        info_frame.pack(fill=tk.X, padx=20, pady=(10, 0))
         
-        self.match_title_var = tk.StringVar(value="Loading match data...")
-        match_title_label = tk.Label(
-            self.info_panel,
+        # Match title
+        self.match_title_var = tk.StringVar(value="Loading match information...")
+        match_title = tk.Label(
+            info_frame, 
             textvariable=self.match_title_var,
-            font=("Arial", 12, "bold")
+            font=("Arial", 14, "bold"),
+            wraplength=800,
+            justify=tk.CENTER
         )
-        match_title_label.pack(fill=tk.X)
+        match_title.pack(fill=tk.X, pady=(0, 10))
         
-        info_details_frame = tk.Frame(self.info_panel)
-        info_details_frame.pack(fill=tk.X, expand=True)
-        
-        # Left info
-        left_info = tk.Frame(info_details_frame)
-        left_info.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
-        
-        self.venue_var = tk.StringVar(value="Venue: Loading...")
-        venue_label = tk.Label(left_info, textvariable=self.venue_var)
-        venue_label.pack(anchor="w")
-        
-        self.date_var = tk.StringVar(value="Date: Loading...")
-        date_label = tk.Label(left_info, textvariable=self.date_var)
-        date_label.pack(anchor="w")
-        
-        # Right info
-        right_info = tk.Frame(info_details_frame)
-        right_info.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True)
+        # Match status and last updated (Right aligned)
+        status_frame = tk.Frame(info_frame, bg="#f0f0f0")
+        status_frame.pack(fill=tk.X)
         
         self.status_display_var = tk.StringVar(value="Status: Loading...")
-        status_display_label = tk.Label(right_info, textvariable=self.status_display_var)
-        status_display_label.pack(anchor="e")
-        
-        self.toss_var = tk.StringVar(value="Toss: Loading...")
-        toss_label = tk.Label(right_info, textvariable=self.toss_var)
-        toss_label.pack(anchor="e")
+        status_display_label = tk.Label(status_frame, textvariable=self.status_display_var, font=("Arial", 12))
+        status_display_label.pack(side=tk.LEFT)
         
         # Content area
         self.notebook = ttk.Notebook(self.main_frame)
@@ -374,12 +1138,24 @@ class CricketDashboard:
             # Make the API call with the user-provided match ID
             url = f"https://cricbuzz-cricket.p.rapidapi.com/mcenter/v1/{self.match_id}/hscard"
             headers = {
-                "x-rapidapi-key": "8d67da612bmsh8a02332f29deb18p108a09jsncb75658ec250",
+                # "x-rapidapi-key": "4ade6f2361msh57ccf4cb0584770p18e418jsnc58ddc583a78", #not working key(284 id)
+                "x-rapidapi-key": "17c4bae87fmsh204730bfc3da945p101869jsn2a8ef0d22e5d", #working key
+                # "x-rapidapi-key": "99cf81f013msh29100b8d02b6b9dp161532jsnd6a92c813a77", #working key (secondary)
                 "x-rapidapi-host": "cricbuzz-cricket.p.rapidapi.com"
             }
             response = requests.get(url, headers=headers, timeout=10)  # Add timeout
             
-            if response.status_code != 200:
+            if response.status_code == 429:
+                # Handle rate limit exceeded
+                error_msg = "API rate limit exceeded (429). Try again later."
+                self.root.after(0, lambda: messagebox.showinfo(
+                    "API Rate Limit", 
+                    "You've reached the RapidAPI rate limit for the Cricbuzz API.\n\n"
+                    "The application will use cached data if available.\n\n"
+                    "Rate limits typically reset after 24 hours."
+                ))
+                raise Exception(error_msg)
+            elif response.status_code != 200:
                 raise Exception(f"API error: {response.status_code}")
                 
             api_data = response.json()
@@ -649,37 +1425,17 @@ class CricketDashboard:
         if self.match_data:
             header = self.match_data["matchHeader"]
             
-            # Set match title
+            # Set match title with all relevant information in a single line
             series = header["seriesName"]
             match_desc = header["matchDescription"]
             team1 = header["teams"][0]["name"]
             team2 = header["teams"][1]["name"]
             self.match_title_var.set(f"{series}: {team1} vs {team2} ({match_desc})")
             
-            # Set venue - Fixed to handle different data structures
-            venue_name = header["venue"].get("name", "Unknown")
-            location = header["venue"].get("location", "")
-            country = header["venue"].get("country", "")
-            venue_str = f"Venue: {venue_name}"
-            if location:
-                venue_str += f", {location}"
-            if country and country != location:
-                venue_str += f", {country}"
-            self.venue_var.set(venue_str)
-            
-            # Set date
-            self.date_var.set(f"Date: {header['matchDate']}")
-            
-            # Set status
+            # Set status with more details
             self.status_display_var.set(f"Status: {header['status']}")
             
-            # Set toss
-            toss_winner = header["tossResults"]["tossWinnerName"]
-            decision = header["tossResults"]["decision"]
-            if toss_winner and decision:
-                self.toss_var.set(f"Toss: {toss_winner} elected to {decision}")
-            else:
-                self.toss_var.set("Toss: Information not available")
+            # We've removed venue, date and toss information as requested
     
     def populate_team_dropdown(self):
         """Populate the team dropdown with teams from the match"""
@@ -733,11 +1489,11 @@ class CricketDashboard:
     def create_overview_tab(self):
         """Create content for the overview tab"""
         # Create a single frame for all graphs
-        graphs_frame = ttk.LabelFrame(self.overview_tab, text="Match Statistics", padding=10)
-        graphs_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        graphs_frame = ttk.LabelFrame(self.overview_tab, text="Match Statistics", padding=15)
+        graphs_frame.pack(fill=tk.BOTH, expand=True, padx=15, pady=15)
         
         # Create a figure with 2x2 subplots for equal sizing
-        fig = plt.figure(figsize=(12, 10))
+        fig = plt.figure(figsize=(10, 8))
         
         # First graph: Team Comparison (top-left)
         ax1 = fig.add_subplot(2, 2, 1)
@@ -839,7 +1595,7 @@ Result: {header["status"]}
         """Create content for the batting analysis tab"""
         # Top frame with controls
         control_frame = tk.Frame(self.batting_tab)
-        control_frame.pack(fill=tk.X, padx=10, pady=10)
+        control_frame.pack(fill=tk.X, padx=5, pady=5)
         
         # Filter by innings
         innings_label = tk.Label(control_frame, text="Select Innings:")
@@ -857,7 +1613,7 @@ Result: {header["status"]}
         
         # Analysis type
         analysis_label = tk.Label(control_frame, text="Analysis Type:")
-        analysis_label.pack(side=tk.LEFT, padx=(0, 10))
+        analysis_label.pack(side=tk.LEFT, padx=(0, 5))
         
         analysis_var = tk.StringVar(value="Runs Distribution")
         analysis_dropdown = ttk.Combobox(
@@ -871,14 +1627,14 @@ Result: {header["status"]}
         
         # Create frame for graphs
         graphs_frame = tk.Frame(self.batting_tab)
-        graphs_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        graphs_frame.pack(fill=tk.BOTH, expand=True)
         
         # Left graph: Runs scored by batsmen
-        runs_frame = ttk.LabelFrame(graphs_frame, text="Runs by Batsmen", padding=10)
-        runs_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+        runs_frame = ttk.LabelFrame(graphs_frame, text="Runs by Batsmen")
+        runs_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 3))
         
-        fig1, ax1 = plt.subplots(figsize=(5, 6))
-        
+        fig1, ax1 = plt.subplots(figsize=(4, 4))
+                
         # Get data for the first innings - FIXING THE ERROR HERE
         innings = self.match_data["scoreCard"][0]
         batsmen = innings["batsmen"][:6]  # Show top 6 batsmen
@@ -896,16 +1652,17 @@ Result: {header["status"]}
             width = bar.get_width()
             ax1.text(width + 1, bar.get_y() + bar.get_height()/2, f'{width}', 
                      ha='left', va='center')
-        
+        plt.tight_layout()
+        fig1.subplots_adjust(left=0.25)
         canvas1 = FigureCanvasTkAgg(fig1, runs_frame)
         canvas1.draw()
         canvas1.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
         # Right graph: Strike rates
-        strike_frame = ttk.LabelFrame(graphs_frame, text="Batsmen Strike Rates", padding=10)
-        strike_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
+        strike_frame = ttk.LabelFrame(graphs_frame, text="Batsmen Strike Rates")
+        strike_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(3, 0))
         
-        fig2, ax2 = plt.subplots(figsize=(5, 6))
+        fig2, ax2 = plt.subplots(figsize=(4, 4))
         
         # Calculate strike rates
         strike_rates = [round((batsman["runs"] / batsman["balls"]) * 100, 1) for batsman in batsmen]
@@ -920,14 +1677,15 @@ Result: {header["status"]}
             width = bar.get_width()
             ax2.text(width + 1, bar.get_y() + bar.get_height()/2, f'{width}', 
                      ha='left', va='center')
-        
+        plt.tight_layout()
+        fig1.subplots_adjust(left=0.25)
         canvas2 = FigureCanvasTkAgg(fig2, strike_frame)
         canvas2.draw()
         canvas2.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
         # Bottom frame for batting scorecard
-        scorecard_frame = ttk.LabelFrame(self.batting_tab, text="Batting Scorecard", padding=10)
-        scorecard_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        scorecard_frame = ttk.LabelFrame(self.batting_tab, text="Batting Scorecard", padding=5)
+        scorecard_frame.pack(fill=tk.BOTH, expand=True, padx=5, pady=5)
         
         # Create treeview for batting scorecard
         cols = ('Batsman', 'Runs', 'Balls', '4s', '6s', 'SR')
@@ -989,42 +1747,101 @@ Result: {header["status"]}
                 ))
             
             # Update first graph based on analysis type
-            fig1, ax1 = plt.subplots(figsize=(5, 6))
+            fig1, ax1 = plt.subplots(figsize=(5, 4))
             
             if analysis_type == "Runs Distribution":
-                runs = [batsman["runs"] for batsman in batsmen]
-                bars = ax1.barh(names, runs, color='#3498db', alpha=0.7)
+                # Sort data by runs (descending)
+                sorted_indices = sorted(range(len(names)), key=lambda i: runs[i], reverse=True)
+                sorted_names = [names[i] for i in sorted_indices]
+                sorted_runs = [runs[i] for i in sorted_indices]
+                
+                # Create horizontal bar chart
+                bars = ax1.barh(sorted_names, sorted_runs, color='#3498db', alpha=0.7)
                 ax1.set_xlabel('Runs')
-                ax1.set_title('Top Batsmen Performance')
+                ax1.set_title('Runs by Batsmen')
+                
+                # Add values at the end of bars
+                for bar in bars:
+                    width = bar.get_width()
+                    ax1.text(width + 0.5, bar.get_y() + bar.get_height()/2, f'{int(width)}', 
+                            ha='left', va='center')
+                
+                # Ensure y-labels are fully visible
+                plt.tight_layout()
+                fig1.subplots_adjust(left=0.25)  # Add more padding on left for names
+            
             elif analysis_type == "Balls Faced":
-                balls = [batsman["balls"] for batsman in batsmen]
-                bars = ax1.barh(names, balls, color='#2ecc71', alpha=0.7)
+                # Sort data by balls faced (descending)
+                sorted_indices = sorted(range(len(names)), key=lambda i: balls[i], reverse=True)
+                sorted_names = [names[i] for i in sorted_indices]
+                sorted_balls = [balls[i] for i in sorted_indices]
+                
+                # Create horizontal bar chart
+                bars = ax1.barh(sorted_names, sorted_balls, color='#9b59b6', alpha=0.7)
                 ax1.set_xlabel('Balls Faced')
                 ax1.set_title('Balls Faced by Batsmen')
+                
+                # Add values at the end of bars
+                for bar in bars:
+                    width = bar.get_width()
+                    ax1.text(width + 0.5, bar.get_y() + bar.get_height()/2, f'{int(width)}', 
+                            ha='left', va='center')
+                            
+                # Ensure y-labels are fully visible
+                plt.tight_layout()
+                fig1.subplots_adjust(left=0.25)  # Add more padding on left for names
+            
             elif analysis_type == "Strike Rate":
+                # Sort data by strike rate (descending)
                 strike_rates = [round((batsman["runs"] / batsman["balls"]) * 100, 1) for batsman in batsmen]
-                bars = ax1.barh(names, strike_rates, color='#e74c3c', alpha=0.7)
+                sorted_indices = sorted(range(len(names)), key=lambda i: strike_rates[i], reverse=True)
+                sorted_names = [names[i] for i in sorted_indices]
+                sorted_strike_rates = [strike_rates[i] for i in sorted_indices]
+                
+                # Create horizontal bar chart
+                bars = ax1.barh(sorted_names, sorted_strike_rates, color='#e74c3c', alpha=0.7)
                 ax1.set_xlabel('Strike Rate')
                 ax1.set_title('Batsmen Strike Rates')
+                
+                # Add values at the end of bars
+                for bar in bars:
+                    width = bar.get_width()
+                    ax1.text(width + 0.5, bar.get_y() + bar.get_height()/2, f'{width}', 
+                            ha='left', va='center')
+                
+                # Ensure y-labels are fully visible
+                plt.tight_layout()
+                fig1.subplots_adjust(left=0.25)  # Add more padding on left for names
+                
             elif analysis_type == "Boundary %":
+                # Calculate and sort by boundary percentage
                 boundary_pcts = [round(((batsman["fours"] * 4 + batsman["sixes"] * 6) / batsman["runs"]) * 100, 1) 
                                 if batsman["runs"] > 0 else 0 for batsman in batsmen]
-                bars = ax1.barh(names, boundary_pcts, color='#9b59b6', alpha=0.7)
+                sorted_indices = sorted(range(len(names)), key=lambda i: boundary_pcts[i], reverse=True)
+                sorted_names = [names[i] for i in sorted_indices]
+                sorted_boundary_pcts = [boundary_pcts[i] for i in sorted_indices]
+                
+                # Create horizontal bar chart
+                bars = ax1.barh(sorted_names, sorted_boundary_pcts, color='#9b59b6', alpha=0.7)
                 ax1.set_xlabel('Boundary %')
                 ax1.set_title('Percentage of Runs from Boundaries')
-            
-            # Add values at the end of bars
-            for bar in bars:
-                width = bar.get_width()
-                ax1.text(width + 1, bar.get_y() + bar.get_height()/2, f'{width}', 
-                         ha='left', va='center')
+                
+                # Add values at the end of bars
+                for bar in bars:
+                    width = bar.get_width()
+                    ax1.text(width + 0.5, bar.get_y() + bar.get_height()/2, f'{width}', 
+                            ha='left', va='center')
+                
+                # Ensure y-labels are fully visible
+                plt.tight_layout()
+                fig1.subplots_adjust(left=0.25)  # Add more padding on left for names
             
             canvas1 = FigureCanvasTkAgg(fig1, runs_frame)
             canvas1.draw()
             canvas1.get_tk_widget().pack(fill=tk.BOTH, expand=True)
             
             # Update second graph
-            fig2, ax2 = plt.subplots(figsize=(5, 6))
+            fig2, ax2 = plt.subplots(figsize=(5, 4))
             
             # Pie chart showing runs from boundaries vs non-boundaries
             total_runs = sum(batsman["runs"] for batsman in innings["batsmen"])
@@ -1052,7 +1869,7 @@ Result: {header["status"]}
         """Create content for the bowling analysis tab"""
         # Top frame with controls
         control_frame = tk.Frame(self.bowling_tab)
-        control_frame.pack(fill=tk.X, padx=10, pady=10)
+        control_frame.pack(fill=tk.X, padx=5, pady=5)
         
         # Filter by innings
         innings_label = tk.Label(control_frame, text="Select Innings:")
@@ -1070,13 +1887,13 @@ Result: {header["status"]}
         
         # Create frame for graphs
         graphs_frame = tk.Frame(self.bowling_tab)
-        graphs_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        graphs_frame.pack(fill=tk.BOTH, expand=True)
         
         # Left graph: Wickets taken by bowlers
-        wickets_frame = ttk.LabelFrame(graphs_frame, text="Wickets by Bowlers", padding=10)
-        wickets_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 5))
+        wickets_frame = ttk.LabelFrame(graphs_frame, text="Wickets by Bowlers")
+        wickets_frame.pack(side=tk.LEFT, fill=tk.BOTH, expand=True, padx=(0, 3))
         
-        fig1, ax1 = plt.subplots(figsize=(5, 6))
+        fig1, ax1 = plt.subplots(figsize=(5, 4))
         
         # Get data for the second innings (bowling figures for first team)
         innings = self.match_data["scoreCard"][1]  # Second innings
@@ -1085,8 +1902,13 @@ Result: {header["status"]}
         names = [bowler["name"] for bowler in bowlers]
         wickets = [bowler["wickets"] for bowler in bowlers]
         
+        # Sort data by wickets (descending)
+        sorted_indices = sorted(range(len(names)), key=lambda i: wickets[i], reverse=True)
+        sorted_names = [names[i] for i in sorted_indices]
+        sorted_wickets = [wickets[i] for i in sorted_indices]
+        
         # Create horizontal bar chart
-        bars = ax1.barh(names, wickets, color='#3498db', alpha=0.7)
+        bars = ax1.barh(sorted_names, sorted_wickets, color='#3498db', alpha=0.7)
         ax1.set_xlabel('Wickets')
         ax1.set_title('Wickets by Bowlers')
         
@@ -1094,31 +1916,44 @@ Result: {header["status"]}
         for bar in bars:
             width = bar.get_width()
             ax1.text(width + 0.1, bar.get_y() + bar.get_height()/2, f'{width}', 
-                     ha='left', va='center')
+                    ha='left', va='center')
+        
+        # Ensure y-labels are fully visible
+        plt.tight_layout()
+        fig1.subplots_adjust(left=0.25)  # Add more padding on left for names
         
         canvas1 = FigureCanvasTkAgg(fig1, wickets_frame)
         canvas1.draw()
         canvas1.get_tk_widget().pack(fill=tk.BOTH, expand=True)
         
         # Right graph: Economy rates
-        economy_frame = ttk.LabelFrame(graphs_frame, text="Bowler Economy Rates", padding=10)
-        economy_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
+        economy_frame = ttk.LabelFrame(graphs_frame, text="Economy Rates")
+        economy_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(3, 0))
         
-        fig2, ax2 = plt.subplots(figsize=(5, 6))
+        fig2, ax2 = plt.subplots(figsize=(5, 4))
         
         # Calculate economy rates
-        economy_rates = [round(bowler["runs"] / float(bowler["overs"]), 2) for bowler in bowlers]
+        economy = [round(bowler["runs"] / float(bowler["overs"]), 2) for bowler in bowlers]
         
-        # Create horizontal bar chart with different color
-        bars = ax2.barh(names, economy_rates, color='#e74c3c', alpha=0.7)
+        # Sort data by economy (ascending - lower is better)
+        sorted_indices = sorted(range(len(names)), key=lambda i: economy[i])
+        sorted_names = [names[i] for i in sorted_indices]
+        sorted_economy = [economy[i] for i in sorted_indices]
+        
+        # Create horizontal bar chart
+        bars = ax2.barh(sorted_names, sorted_economy, color='#e74c3c', alpha=0.7)
         ax2.set_xlabel('Economy Rate')
-        ax2.set_title('Bowler Economy Rates')
+        ax2.set_title('Economy Rates')
         
         # Add values at the end of bars
         for bar in bars:
             width = bar.get_width()
             ax2.text(width + 0.1, bar.get_y() + bar.get_height()/2, f'{width}', 
-                     ha='left', va='center')
+                    ha='left', va='center')
+        
+        # Ensure y-labels are fully visible
+        plt.tight_layout()
+        fig2.subplots_adjust(left=0.25)  # Add more padding on left for names
         
         canvas2 = FigureCanvasTkAgg(fig2, economy_frame)
         canvas2.draw()
@@ -1187,7 +2022,7 @@ Result: {header["status"]}
                 ))
             
             # Update wickets graph
-            fig1, ax1 = plt.subplots(figsize=(5, 6))
+            fig1, ax1 = plt.subplots(figsize=(4, 4))
             wickets = [bowler["wickets"] for bowler in bowlers]
             
             bars = ax1.barh(names, wickets, color='#3498db', alpha=0.7)
@@ -1205,7 +2040,7 @@ Result: {header["status"]}
             canvas1.get_tk_widget().pack(fill=tk.BOTH, expand=True)
             
             # Update economy graph
-            fig2, ax2 = plt.subplots(figsize=(5, 6))
+            fig2, ax2 = plt.subplots(figsize=(4, 4))
             economy_rates = [round(bowler["runs"] / float(bowler["overs"]), 2) for bowler in bowlers]
             
             bars = ax2.barh(names, economy_rates, color='#e74c3c', alpha=0.7)
@@ -1267,15 +2102,15 @@ Result: {header["status"]}
         player_details_frame.pack(side=tk.RIGHT, fill=tk.BOTH, expand=True, padx=(5, 0))
         
         # Player image (placeholder)
-        img_frame = tk.Frame(player_details_frame, height=150, width=150)
-        img_frame.pack(pady=10)
-        img_frame.pack_propagate(False)
+        # img_frame = tk.Frame(player_details_frame, height=150, width=150)
+        # img_frame.pack(pady=10)
+        # img_frame.pack_propagate(False)
         
-        # Create a circle placeholder for player image
-        canvas = tk.Canvas(img_frame, width=150, height=150, bg="#f0f0f0", highlightthickness=0)
-        canvas.pack()
-        canvas.create_oval(10, 10, 140, 140, fill="#3498db", outline="#2980b9", width=2)
-        canvas.create_text(75, 75, text="Player\nPhoto", fill="white", font=("Arial", 12, "bold"))
+        # # Create a circle placeholder for player image
+        # canvas = tk.Canvas(img_frame, width=150, height=150, bg="#f0f0f0", highlightthickness=0)
+        # canvas.pack()
+        # canvas.create_oval(10, 10, 140, 140, fill="#3498db", outline="#2980b9", width=2)
+        # canvas.create_text(75, 75, text="Player\nPhoto", fill="white", font=("Arial", 12, "bold"))
         
         # Player info
         info_frame = tk.Frame(player_details_frame)
@@ -1475,7 +2310,8 @@ Result: {header["status"]}
         graph_frame = ttk.LabelFrame(self.progress_tab, text="Match Progress", padding=10)
         graph_frame.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
-        fig, ax = plt.subplots(figsize=(10, 6))
+        # Create a larger figure for better visibility
+        fig, ax = plt.subplots(figsize=(12, 7))
         
         # Get progress data
         progress_data = self.match_data["matchProgress"]["overByOver"]
@@ -1486,24 +2322,37 @@ Result: {header["status"]}
         team1_name = self.match_data["scoreCard"][0]["team"]
         team2_name = self.match_data["scoreCard"][1]["team"]
         
-        # Plot both teams
-        ax.plot(overs, team1_scores, marker='o', linestyle='-', linewidth=2, label=team1_name, color='#3498db')
-        ax.plot(overs, team2_scores, marker='s', linestyle='-', linewidth=2, label=team2_name, color='#e74c3c')
+        # Plot with improved styling
+        ax.plot(overs, team1_scores, marker='o', markersize=6, linestyle='-', linewidth=3, 
+                label=team1_name, color='#113955')  # Using the primary color
+        ax.plot(overs, team2_scores, marker='s', markersize=6, linestyle='-', linewidth=3, 
+                label=team2_name, color='#8c1c13')  # Using the secondary color
         
-        ax.set_xlabel('Overs')
-        ax.set_ylabel('Score')
-        ax.set_title('Run Progress Throughout the Match')
-        ax.set_title('Run Progress Throughout the Match')
+        # Add background shading
+        ax.fill_between(overs, team1_scores, alpha=0.1, color='#113955')
+        ax.fill_between(overs, team2_scores, alpha=0.1, color='#8c1c13')
+        
+        # Improve axis labels and title
+        ax.set_xlabel('Overs', fontsize=12, fontweight='bold')
+        ax.set_ylabel('Score', fontsize=12, fontweight='bold')
+        ax.set_title('Run Progress Throughout the Match', fontsize=14, fontweight='bold', pad=15)
+        
+        # Add grid for better readability
         ax.grid(True, linestyle='--', alpha=0.7)
-        ax.legend()
+        
+        # Improve legend
+        ax.legend(fontsize=11, frameon=True, fancybox=True, framealpha=0.8, loc='upper left')
         
         # Annotate key points
         for i in range(len(overs)):
-            if i % 2 == 0:  # Add labels every 2 data points to avoid crowding
+            # Annotate at regular intervals to avoid crowding
+            if i % 3 == 0 or i == len(overs)-1:  
                 ax.annotate(f"{team1_scores[i]}", (overs[i], team1_scores[i]),
-                            textcoords="offset points", xytext=(0,10), ha='center')
+                            textcoords="offset points", xytext=(0,10), ha='center',
+                            fontweight='bold', fontsize=9)
                 ax.annotate(f"{team2_scores[i]}", (overs[i], team2_scores[i]),
-                            textcoords="offset points", xytext=(0,-15), ha='center')
+                            textcoords="offset points", xytext=(0,-15), ha='center',
+                            fontweight='bold', fontsize=9)
         
         canvas = FigureCanvasTkAgg(fig, graph_frame)
         canvas.draw()
@@ -1574,46 +2423,26 @@ Result: {header["status"]}
         over_scores1 = [team1_scores[i] - team1_scores[i-1] if i > 0 else team1_scores[0] for i in range(len(team1_scores))]
         over_scores2 = [team2_scores[i] - team2_scores[i-1] if i > 0 else team2_scores[0] for i in range(len(team2_scores))]
         
-        max_over1 = max(range(len(over_scores1)), key=lambda i: over_scores1[i])
-        max_over2 = max(range(len(over_scores2)), key=lambda i: over_scores2[i])
+        max_over1_idx = max(range(len(over_scores1)), key=lambda i: over_scores1[i])
+        max_over2_idx = max(range(len(over_scores2)), key=lambda i: over_scores2[i])
         
-        tk.Label(right_stats, text=f"Highest scoring over", font=("Arial", 10, "bold")).pack(anchor="w", pady=(5, 0))
-        tk.Label(right_stats, text=f"{team1_name}: {over_scores1[max_over1]} runs (over {overs[max_over1]})").pack(anchor="w")
-        tk.Label(right_stats, text=f"{team2_name}: {over_scores2[max_over2]} runs (over {overs[max_over2]})").pack(anchor="w")
+        self.create_progress_stat_card(right_stats, "Highest Scoring Over", 
+            f"{team1_name}: {over_scores1[max_over1_idx]} runs (over {overs[max_over1_idx]})\n{team2_name}: {over_scores2[max_over2_idx]} runs (over {overs[max_over2_idx]})")
+    
+    def create_progress_stat_card(self, parent, title, value):
+        """Create a styled stat card for the progress tab"""
+        card = tk.Frame(parent, bd=1, relief=tk.RAISED, padx=10, pady=10, bg='white')
+        card.pack(fill=tk.X, padx=5, pady=5)
         
-        # Add partnership table at the bottom
-        partnership_frame = ttk.LabelFrame(self.progress_tab, text="Key Partnerships", padding=10)
-        partnership_frame.pack(fill=tk.X, padx=10, pady=10)
+        title_label = tk.Label(card, text=title, font=("Arial", 11, "bold"), bg='white', fg='#444')
+        title_label.pack(anchor='w')
         
-        # Create table for partnerships
-        cols = ('Team', 'Batsmen', 'Runs', 'Balls', 'Overs')
-        partnership_table = ttk.Treeview(partnership_frame, columns=cols, show='headings', height=5)
+        ttk.Separator(card, orient=tk.HORIZONTAL).pack(fill=tk.X, pady=5)
         
-        # Configure column headings
-        for col in cols:
-            partnership_table.heading(col, text=col)
-            if col == 'Batsmen':
-                partnership_table.column(col, width=200, anchor='w')
-            else:
-                partnership_table.column(col, width=100, anchor='center')
+        value_label = tk.Label(card, text=value, font=("Arial", 10), bg='white', justify=tk.LEFT)
+        value_label.pack(anchor='w')
         
-        # Sample partnerships data (would be calculated from full match data in a real app)
-        partnerships = [
-            (team1_name, "Mitchell Marsh & Steve Smith", 76, 85, "8.3 - 22.4"),
-            (team1_name, "Steve Smith & Marnus Labuschagne", 52, 64, "22.5 - 33.2"),
-            (team2_name, "Rohit Sharma & Virat Kohli", 91, 108, "4.2 - 22.1"),
-            (team2_name, "Virat Kohli & KL Rahul", 75, 93, "22.2 - 37.5")
-        ]
-        
-        # Insert partnership data
-        for p in partnerships:
-            partnership_table.insert('', 'end', values=p)
-        
-        # Add scrollbar
-        scrollbar = ttk.Scrollbar(partnership_frame, orient=tk.VERTICAL, command=partnership_table.yview)
-        partnership_table.configure(yscroll=scrollbar.set)
-        scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
-        partnership_table.pack(fill=tk.BOTH, expand=True)
+        return card
     
     def export_data(self):
         """Export data to JSON file"""
@@ -1683,8 +2512,30 @@ Result: {header["status"]}
         analysis_window.title("Detailed Match Analysis")
         analysis_window.geometry("800x600")
         
+        # Create main frame with scrollbars
+        main_frame = tk.Frame(analysis_window)
+        main_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Add canvas and scrollbars for scrolling
+        canvas = tk.Canvas(main_frame)
+        v_scrollbar = ttk.Scrollbar(main_frame, orient=tk.VERTICAL, command=canvas.yview)
+        h_scrollbar = ttk.Scrollbar(main_frame, orient=tk.HORIZONTAL, command=canvas.xview)
+        
+        # Configure scrollbars
+        v_scrollbar.pack(side=tk.RIGHT, fill=tk.Y)
+        h_scrollbar.pack(side=tk.BOTTOM, fill=tk.X)
+        canvas.pack(side=tk.LEFT, fill=tk.BOTH, expand=True)
+        
+        # Configure canvas
+        canvas.configure(yscrollcommand=v_scrollbar.set, xscrollcommand=h_scrollbar.set)
+        canvas.bind('<Configure>', lambda e: canvas.configure(scrollregion=canvas.bbox("all")))
+        
+        # Create a frame inside the canvas to hold the content
+        content_frame = tk.Frame(canvas)
+        canvas.create_window((0, 0), window=content_frame, anchor="nw")
+        
         # Create a notebook with tabs
-        notebook = ttk.Notebook(analysis_window)
+        notebook = ttk.Notebook(content_frame)
         notebook.pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # Head to head tab
@@ -1816,9 +2667,10 @@ Result: {header["status"]}
         radar_frame = tk.Frame(perf_tab)
         radar_frame.pack(fill=tk.BOTH, expand=True)
         
-        canvas = FigureCanvasTkAgg(fig, radar_frame)
-        canvas.draw()
-        canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
+        # Rename the variable to avoid conflict with the scrolling canvas
+        figure_canvas = FigureCanvasTkAgg(fig, radar_frame)
+        figure_canvas.draw()
+        figure_canvas.get_tk_widget().pack(fill=tk.BOTH, expand=True, padx=10, pady=10)
         
         # Add text analysis
         text_frame = ttk.LabelFrame(perf_tab, text="Performance Insights", padding=10)
@@ -1843,23 +2695,158 @@ This analysis is based on key performance metrics normalized across both teams.
         analysis_text_widget.pack(fill=tk.BOTH, expand=True)
         analysis_text_widget.insert(tk.END, analysis_text)
         analysis_text_widget.config(state=tk.DISABLED)
-
+        
+        # Update the canvas scrollregion after all widgets are added
+        content_frame.update_idletasks()
+        canvas.config(scrollregion=canvas.bbox("all"))
+    
     def change_match_id(self):
-        """Allow user to change match ID and reload data"""
-        new_match_id = simpledialog.askstring("Change Match ID", 
-                                           "Enter new cricket match ID:", 
-                                           initialvalue=self.match_id)
-        if new_match_id and new_match_id != self.match_id:
-            self.match_id = new_match_id
-            # Update the match ID button text in the sidebar
-            for widget in self.root.winfo_children():
-                if isinstance(widget, tk.Frame) and widget.winfo_width() == 200:  # Sidebar
-                    for child in widget.winfo_children():
-                        if isinstance(child, ttk.Button) and "Match ID" in child.cget("text"):
-                            child.config(text=f"Change Match ID ({self.match_id})")
-                            break
-            # Fetch new data
-            self.fetch_data()
+        """Allow user to change match ID and reload data using a dropdown"""
+        # Create a custom dialog window
+        dialog = tk.Toplevel(self.root)
+        dialog.title("Change Match ID")
+        dialog.geometry("400x250")
+        dialog.transient(self.root)  # Make dialog float on top of the main window
+        dialog.grab_set()  # Make dialog modal
+        dialog.resizable(False, False)
+        
+        # Configure background
+        dialog.configure(bg="#f0f0f0")
+        
+        # Add some padding
+        padding_frame = tk.Frame(dialog, bg="#f0f0f0", padx=20, pady=20)
+        padding_frame.pack(fill=tk.BOTH, expand=True)
+        
+        # Add header
+        header_label = tk.Label(
+            padding_frame,
+            text="Select or Enter Match ID",
+            font=("Arial", 14, "bold"),
+            bg="#f0f0f0"
+        )
+        header_label.pack(pady=(0, 20))
+        
+        # Frame for the dropdown
+        dropdown_frame = tk.Frame(padding_frame, bg="#f0f0f0")
+        dropdown_frame.pack(fill=tk.X, pady=10)
+        
+        # Label for the dropdown
+        dropdown_label = tk.Label(
+            dropdown_frame,
+            text="Select Match ID:",
+            font=("Arial", 12),
+            bg="#f0f0f0"
+        )
+        dropdown_label.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Predefined match IDs
+        match_ids = ["112469", "112462", "112455", "112420", "112402"]
+        
+        # Add current ID if not in list
+        if self.match_id not in match_ids:
+            match_ids.insert(0, self.match_id)
+            
+        # Create StringVar for the dropdown
+        selected_id = tk.StringVar(value=self.match_id)
+        
+        # Create the dropdown
+        id_dropdown = ttk.Combobox(
+            dropdown_frame,
+            textvariable=selected_id,
+            values=match_ids,
+            width=15,
+            font=("Arial", 12)
+        )
+        id_dropdown.pack(side=tk.LEFT)
+        
+        # OR separator
+        separator_frame = tk.Frame(padding_frame, bg="#f0f0f0", pady=10)
+        separator_frame.pack(fill=tk.X)
+        
+        left_line = ttk.Separator(separator_frame, orient="horizontal")
+        left_line.pack(side=tk.LEFT, fill=tk.X, expand=True, padx=(0, 10))
+        
+        or_label = tk.Label(separator_frame, text="OR", bg="#f0f0f0")
+        or_label.pack(side=tk.LEFT, padx=10)
+        
+        right_line = ttk.Separator(separator_frame, orient="horizontal")
+        right_line.pack(side=tk.RIGHT, fill=tk.X, expand=True, padx=(10, 0))
+        
+        # Custom entry frame
+        entry_frame = tk.Frame(padding_frame, bg="#f0f0f0")
+        entry_frame.pack(fill=tk.X, pady=10)
+        
+        # Label for custom entry
+        entry_label = tk.Label(
+            entry_frame,
+            text="Enter Custom ID:",
+            font=("Arial", 12),
+            bg="#f0f0f0"
+        )
+        entry_label.pack(side=tk.LEFT, padx=(0, 10))
+        
+        # Entry for custom match ID
+        custom_entry = ttk.Entry(entry_frame, width=15, font=("Arial", 12))
+        custom_entry.pack(side=tk.LEFT)
+        custom_entry.insert(0, self.match_id)
+        
+        # Button frame
+        button_frame = tk.Frame(padding_frame, bg="#f0f0f0", pady=20)
+        button_frame.pack(fill=tk.X)
+        
+        # Cancel button
+        cancel_button = ttk.Button(
+            button_frame,
+            text="Cancel",
+            command=dialog.destroy
+        )
+        cancel_button.pack(side=tk.LEFT, padx=10)
+        
+        # Function to handle dialog submission
+        def on_submit():
+            # Get the ID from dropdown or entry
+            new_id = custom_entry.get().strip() if custom_entry.get().strip() else selected_id.get()
+            
+            # Check if ID is valid and different
+            if new_id and new_id != self.match_id:
+                self.match_id = new_id
+                # Update the match ID button text in the sidebar
+                for widget in self.root.winfo_children():
+                    if isinstance(widget, tk.Frame) and widget.winfo_width() == 200:  # Sidebar
+                        for child in widget.winfo_children():
+                            if isinstance(child, ttk.Button) and "Match ID" in child.cget("text"):
+                                child.config(text=f"Change Match ID ({self.match_id})")
+                                break
+                # Fetch new data
+                self.fetch_data()
+            
+            # Close the dialog
+            dialog.destroy()
+        
+        # Submit button
+        submit_button = ttk.Button(
+            button_frame,
+            text="Load Match",
+            command=on_submit
+        )
+        submit_button.pack(side=tk.RIGHT, padx=10)
+        
+        # Bind enter key to submit
+        dialog.bind("<Return>", lambda event: on_submit())
+        
+        # Center the dialog on the parent window
+        dialog.update_idletasks()
+        width = dialog.winfo_width()
+        height = dialog.winfo_height()
+        x = self.root.winfo_x() + (self.root.winfo_width() // 2) - (width // 2)
+        y = self.root.winfo_y() + (self.root.winfo_height() // 2) - (height // 2)
+        dialog.geometry(f"{width}x{height}+{x}+{y}")
+        
+        # Set focus on the dropdown
+        id_dropdown.focus_set()
+        
+        # Wait for the dialog to be closed
+        dialog.wait_window()
 
 
 if __name__ == "__main__":
