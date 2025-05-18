@@ -18,7 +18,8 @@ A modern, feature-rich cricket match dashboard built with Python and Tkinter tha
 ## Screenshots
 
 ### Match Selection Screen
-*[Add screenshot of the match selection screen showing live and recent matches]*
+![Screenshot 2025-05-18 203401](https://github.com/user-attachments/assets/bd80dce6-b6a0-4c0a-9b77-8ac6c51d5828)
+
 
 ### Main Dashboard Overview
 *[Add screenshot of the main dashboard with match overview]*
@@ -41,11 +42,6 @@ A modern, feature-rich cricket match dashboard built with Python and Tkinter tha
 ```bash
 git clone [your-repository-url]
 cd cricket-dashboard
-```
-
-2. Install the required dependencies:
-```bash
-pip install -r requirements.txt
 ```
 
 ## Dependencies
@@ -99,20 +95,8 @@ python dashboard.py
 - Dark/light theme support
 - Toast notifications for updates
 
-## Contributing
-
-Contributions are welcome! Please feel free to submit a Pull Request.
-
-## License
-
-This project is licensed under the MIT License - see the LICENSE file for details.
-
 ## Acknowledgments
 
 - Cricket data provided by Cricbuzz API
 - Built with Python and Tkinter
 - Visualization powered by Matplotlib
-
-## Contact
-
-For any queries or suggestions, please open an issue in the repository. 
