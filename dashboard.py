@@ -115,9 +115,7 @@ class CricketDashboard:
                     if hasattr(self, 'status_label'):
                         self.status_label.config(text=f"Live matches loaded - {datetime.now().strftime('%H:%M:%S')}")
                 elif response.status_code == 429:
-                    # Handle rate limit specifically
-                    self._use_sample_data()
-                    
+                                        
                     if hasattr(self, 'status_label'):
                         self.status_label.config(text=f"API rate limit reached (429). Using sample data instead.")
                     
@@ -130,160 +128,18 @@ class CricketDashboard:
                             "Rate limits typically reset after 24 hours."
                         )
                 else:
-                    # Fall back to sample data if API fails
-                    self._use_sample_data()
-                    
+                                       
                     if hasattr(self, 'status_label'):
                         self.status_label.config(text=f"API error ({response.status_code}). Using sample data.")
-            except requests.RequestException as e:
-                # Handle network errors
-                self._use_sample_data()
-                
+            except requests.RequestException as e:                
                 if hasattr(self, 'status_label'):
                     self.status_label.config(text=f"Network error: {str(e)}. Using sample data.")
                 
         except Exception as e:
-            # Fall back to sample data on any error
-            self._use_sample_data()
-            
+                      
             if hasattr(self, 'status_label'):
                 self.status_label.config(text=f"Error: {str(e)}. Using sample data.")
             print(f"Error loading matches: {str(e)}")
-    
-    def _use_sample_data(self):
-        """Use sample data as a fallback"""
-        # Sample data structure matching the API format
-        sample_data = {
-            "typeMatches": [
-                {
-                    "matchType": "International",
-                    "seriesMatches": [
-                        {
-                            "seriesAdWrapper": {
-                                "seriesName": "ICC Men's T20 World Cup 2024",
-                                "matches": [
-                                    {
-                                        "matchInfo": {
-                                            "matchId": "112469",
-                                            "matchDesc": "13th Match, Group C",
-                                            "matchFormat": "T20",
-                                            "status": "India won by 8 wickets",
-                                            "state": "Complete",
-                                            "team1": {"teamName": "India"},
-                                            "team2": {"teamName": "Ireland"},
-                                            "venueInfo": {"ground": "Nassau County International Stadium", "city": "New York"}
-                                        },
-                                        "matchScore": {
-                                            "team1Score": {
-                                                "inngs1": {"runs": 147, "wickets": 6, "overs": 20.0}
-                                            },
-                                            "team2Score": {
-                                                "inngs1": {"runs": 150, "wickets": 2, "overs": 15.2}
-                                            }
-                                        }
-                                    },
-                                    {
-                                        "matchInfo": {
-                                            "matchId": "112462", 
-                                            "matchDesc": "10th Match, Group D",
-                                            "matchFormat": "T20",
-                                            "status": "New Zealand won by 4 wickets",
-                                            "state": "Complete",
-                                            "team1": {"teamName": "Afghanistan"},
-                                            "team2": {"teamName": "New Zealand"},
-                                            "venueInfo": {"ground": "Providence Stadium", "city": "Guyana"}
-                                        },
-                                        "matchScore": {
-                                            "team1Score": {
-                                                "inngs1": {"runs": 129, "wickets": 6, "overs": 20.0}
-                                            },
-                                            "team2Score": {
-                                                "inngs1": {"runs": 130, "wickets": 6, "overs": 18.1}
-                                            }
-                                        }
-                                    },
-                                    {
-                                        "matchInfo": {
-                                            "matchId": "112455", 
-                                            "matchDesc": "9th Match, Group B",
-                                            "matchFormat": "T20",
-                                            "status": "Australia won by 36 runs",
-                                            "state": "Complete",
-                                            "team1": {"teamName": "Australia"},
-                                            "team2": {"teamName": "England"},
-                                            "venueInfo": {"ground": "Kensington Oval", "city": "Barbados"}
-                                        },
-                                        "matchScore": {
-                                            "team1Score": {
-                                                "inngs1": {"runs": 201, "wickets": 7, "overs": 20.0}
-                                            },
-                                            "team2Score": {
-                                                "inngs1": {"runs": 165, "wickets": 10, "overs": 18.2}
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                },
-                {
-                    "matchType": "League",
-                    "seriesMatches": [
-                        {
-                            "seriesAdWrapper": {
-                                "seriesName": "IPL 2024",
-                                "matches": [
-                                    {
-                                        "matchInfo": {
-                                            "matchId": "112420",
-                                            "matchDesc": "Final",
-                                            "matchFormat": "T20",
-                                            "status": "Kolkata Knight Riders won by 8 wickets",
-                                            "state": "Complete",
-                                            "team1": {"teamName": "Sunrisers Hyderabad"},
-                                            "team2": {"teamName": "Kolkata Knight Riders"},
-                                            "venueInfo": {"ground": "MA Chidambaram Stadium", "city": "Chennai"}
-                                        },
-                                        "matchScore": {
-                                            "team1Score": {
-                                                "inngs1": {"runs": 113, "wickets": 10, "overs": 18.3}
-                                            },
-                                            "team2Score": {
-                                                "inngs1": {"runs": 114, "wickets": 2, "overs": 10.3}
-                                            }
-                                        }
-                                    },
-                                    {
-                                        "matchInfo": {
-                                            "matchId": "112402",
-                                            "matchDesc": "Qualifier 2",
-                                            "matchFormat": "T20",
-                                            "status": "Sunrisers Hyderabad won by 35 runs",
-                                            "state": "Complete",
-                                            "team1": {"teamName": "Rajasthan Royals"},
-                                            "team2": {"teamName": "Sunrisers Hyderabad"},
-                                            "venueInfo": {"ground": "MA Chidambaram Stadium", "city": "Chennai"}
-                                        },
-                                        "matchScore": {
-                                            "team1Score": {
-                                                "inngs1": {"runs": 139, "wickets": 10, "overs": 19.1}
-                                            },
-                                            "team2Score": {
-                                                "inngs1": {"runs": 175, "wickets": 9, "overs": 20.0}
-                                            }
-                                        }
-                                    }
-                                ]
-                            }
-                        }
-                    ]
-                }
-            ]
-        }
-        
-        # Populate the match selection with the sample data
-        self.populate_match_selection(sample_data)
     
     def populate_match_selection(self, matches_data, matches_data_recent):
         """Populate the match selection screen with data from the API"""
@@ -2844,11 +2700,8 @@ This analysis is based on key performance metrics normalized across both teams.
         
         # Set focus on the dropdown
         id_dropdown.focus_set()
-        
         # Wait for the dialog to be closed
         dialog.wait_window()
-
-
 if __name__ == "__main__":
     root = tk.Tk()
     app = CricketDashboard(root)
