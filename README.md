@@ -22,19 +22,24 @@ A modern, feature-rich cricket match dashboard built with Python and Tkinter tha
 
 
 ### Main Dashboard Overview
-*[Add screenshot of the main dashboard with match overview]*
+![image](https://github.com/user-attachments/assets/e724e47f-ff6d-498d-977e-741693a5590b)
+
 
 ### Batting Analysis
-*[Add screenshot of the batting analysis tab with player statistics]*
+![image](https://github.com/user-attachments/assets/7ffbb090-42d5-4d51-898a-63e320e97bba)
+
 
 ### Bowling Analysis
-*[Add screenshot of the bowling analysis tab with bowler statistics]*
+![image](https://github.com/user-attachments/assets/1e20f461-d95f-473e-9cf9-886def23cf61)
+
 
 ### Player Details
-*[Add screenshot of the player details view]*
+![image](https://github.com/user-attachments/assets/fba27fe9-6aed-46f8-bf9e-565960362bf9)
+
 
 ### Match Progress
-*[Add screenshot of the match progress visualization]*
+![image](https://github.com/user-attachments/assets/af5f8e15-8aa2-4e13-97fd-01e75718a836)
+
 
 ## Installation
 
